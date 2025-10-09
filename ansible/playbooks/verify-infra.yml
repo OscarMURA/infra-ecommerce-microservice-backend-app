@@ -1,0 +1,18 @@
+---
+- name: Verificación de infraestructura provisionada
+  hosts: all
+  gather_facts: false
+  tasks:
+    - name: Verificar conectividad SSH
+      ping:
+
+    - name: Validar versión de Docker instalada
+      command: docker --version
+      register: docker_version
+      changed_when: false
+      failed_when: docker_version.rc != 0
+
+    - name: Mostrar versión de Docker
+      debug:
+        msg: "Docker version: {{ docker_version.stdout }}"
+      when: docker_version.stdout is defined

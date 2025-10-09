@@ -1,0 +1,6 @@
+---
+project_prefix: infra-ecommerce
+docker_apt_repo: https://download.docker.com/linux/ubuntu
+kubernetes_version: "1.27.5"
+container_runtime: containerd
+default_user: devops

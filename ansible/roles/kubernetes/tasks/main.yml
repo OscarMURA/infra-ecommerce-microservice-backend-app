@@ -1,0 +1,39 @@
+---
+- name: Instalar dependencias para Kubernetes
+  apt:
+    name:
+      - apt-transport-https
+      - curl
+    state: present
+  when: ansible_os_family == "Debian"
+
+- name: Instalar kubeadm, kubelet y kubectl
+  apt:
+    name:
+      - kubeadm
+      - kubelet
+      - kubectl
+    state: present
+  when: ansible_os_family == "Debian"
+
+- name: Inicializar nodo master
+  command: kubeadm init --pod-network-cidr=10.244.0.0/16
+  when: kubeadm_role == "master"
+  args:
+    creates: /etc/kubernetes/admin.conf
+
+- name: Copiar configuración de kubeconfig al usuario root
+  command: >
+    cp /etc/kubernetes/admin.conf /root/.kube/config
+  when: kubeadm_role == "master"
+  args:
+    creates: /root/.kube/config
+
+- name: Instalar red de pods (Calico)
+  shell: kubectl apply -f https://docs.projectcalico.org/manifests/calico.yaml
+  when: kubeadm_role == "master"
+
+- name: Unir nodo worker al cluster
+  debug:
+    msg: "Ejecutar kubeadm join con el token generado en el master"
+  when: kubeadm_role == "worker"

@@ -1,0 +1,20 @@
+---
+- name: Configuración de Kubernetes - master
+  hosts: k8s_master
+  become: true
+  vars_files:
+    - ../vars/main.yml
+  roles:
+    - role: kubernetes
+      vars:
+        kubeadm_role: "master"
+
+- name: Configuración de Kubernetes - workers
+  hosts: k8s_workers
+  become: true
+  vars_files:
+    - ../vars/main.yml
+  roles:
+    - role: kubernetes
+      vars:
+        kubeadm_role: "worker"

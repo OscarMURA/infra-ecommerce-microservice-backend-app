@@ -1,0 +1,11 @@
+---
+- name: Instalación y configuración de Jenkins
+  hosts: jenkins
+  become: true
+  vars_files:
+    - ../vars/main.yml
+  tasks:
+    - name: "Condicional: ejecutar rol jenkins solo si jenkins_install == true"
+      include_role:
+        name: jenkins
+      when: jenkins_install | default(false)

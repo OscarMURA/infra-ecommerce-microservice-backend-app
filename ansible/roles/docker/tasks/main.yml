@@ -1,0 +1,28 @@
+---
+- name: Actualizar cache de paquetes
+  apt:
+    update_cache: true
+  when: ansible_os_family == "Debian"
+
+- name: Instalar dependencias básicas
+  apt:
+    name:
+      - ca-certificates
+      - curl
+      - gnupg
+      - lsb-release
+    state: present
+  when: ansible_os_family == "Debian"
+
+- name: Asegurar instalación de Docker
+  apt:
+    name: docker.io
+    state: present
+  when: ansible_os_family == "Debian"
+
+- name: Agregar usuario {{ default_user }} al grupo docker
+  user:
+    name: "{{ default_user }}"
+    groups: docker
+    append: true
+  when: default_user is defined

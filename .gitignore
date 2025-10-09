@@ -1,0 +1,40 @@
+# Terraform
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+terraform/dev/terraform.tfvars
+terraform/dev/terraform.tfvars.backup
+
+# SSH keys generadas automáticamente
+.ssh/
+*.pem
+*_rsa
+*_rsa.pub
+
+# Ansible
+*.retry
+ansible/inventories/dev.ini
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
