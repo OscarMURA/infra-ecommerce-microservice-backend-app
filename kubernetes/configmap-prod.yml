@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ecommerce-config
+  namespace: ecommerce-prod
+data:
+  environment: "prod"
+  log_level: "WARN"
+  db_host: "db.ecommerce.com"
+  db_port: "5432"
+  db_name: "ecommerce_prod"
+  redis_host: "redis.ecommerce.com"
+  redis_port: "6379"
+  app_port: "3000"

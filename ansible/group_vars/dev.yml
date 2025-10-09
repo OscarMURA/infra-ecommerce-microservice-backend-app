@@ -1,0 +1,36 @@
+---
+# Development Environment Variables
+environment: dev
+domain: dev.ecommerce.local
+docker_version: "24.0.0"
+kubernetes_version: "1.28.0"
+
+# Docker Registry
+docker_registry_url: "registry.dev.ecommerce.local"
+docker_registry_user: "dev_user"
+
+# Database Configuration
+db_host: "db.dev.ecommerce.local"
+db_port: 5432
+db_name: "ecommerce_dev"
+db_user: "dev_user"
+
+# Redis Configuration
+redis_host: "redis.dev.ecommerce.local"
+redis_port: 6379
+
+# Application Configuration
+app_replicas: 2
+app_cpu_limit: "500m"
+app_memory_limit: "512Mi"
+app_cpu_request: "250m"
+app_memory_request: "256Mi"
+
+# Logging
+log_level: "DEBUG"
+log_retention_days: 7
+
+# Monitoring
+enable_monitoring: true
+prometheus_enabled: true
+grafana_enabled: true

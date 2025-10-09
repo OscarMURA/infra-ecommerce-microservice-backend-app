@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ecommerce-config
+  namespace: ecommerce-dev
+data:
+  environment: "dev"
+  log_level: "DEBUG"
+  db_host: "db.dev.ecommerce.local"
+  db_port: "5432"
+  db_name: "ecommerce_dev"
+  redis_host: "redis.dev.ecommerce.local"
+  redis_port: "6379"
+  app_port: "3000"

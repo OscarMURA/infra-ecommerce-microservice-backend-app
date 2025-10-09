@@ -1,0 +1,69 @@
+---
+- name: Setup Complete Infrastructure for Ecommerce Microservice Backend
+  hosts: localhost
+  gather_facts: no
+  tasks:
+    - name: Display environment information
+      debug:
+        msg: "Setting up infrastructure for {{ environment }} environment"
+
+- import_playbook: install-docker.yml
+
+- import_playbook: setup-kubernetes.yml
+
+- name: Configure environment-specific settings
+  hosts: all
+  become: yes
+  tasks:
+    - name: Create application directories
+      file:
+        path: "{{ item }}"
+        state: directory
+        mode: '0755'
+      loop:
+        - /opt/ecommerce/config
+        - /opt/ecommerce/logs
+        - /opt/ecommerce/data
+
+    - name: Deploy environment configuration
+      template:
+        src: ../templates/app-config.j2
+        dest: /opt/ecommerce/config/app-config.yml
+        mode: '0644'
+
+    - name: Setup log rotation
+      copy:
+        content: |
+          /opt/ecommerce/logs/*.log {
+              daily
+              rotate {{ log_retention_days }}
+              compress
+              delaycompress
+              missingok
+              notifempty
+              create 0644 root root
+          }
+        dest: /etc/logrotate.d/ecommerce
+
+- name: Verify installation
+  hosts: all
+  tasks:
+    - name: Check Docker status
+      command: docker --version
+      register: docker_version
+      changed_when: false
+
+    - name: Display Docker version
+      debug:
+        var: docker_version.stdout
+
+    - name: Check Kubernetes status (master)
+      command: kubectl get nodes
+      register: k8s_nodes
+      changed_when: false
+      when: "'kubernetes_master' in group_names"
+
+    - name: Display Kubernetes nodes
+      debug:
+        var: k8s_nodes.stdout_lines
+      when: "'kubernetes_master' in group_names"

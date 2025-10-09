@@ -1,0 +1,16 @@
+[prod_servers]
+prod-server-1 ansible_host=10.0.1.10 ansible_user=ubuntu ansible_ssh_private_key_file=~/.ssh/prod_key
+prod-server-2 ansible_host=10.0.1.11 ansible_user=ubuntu ansible_ssh_private_key_file=~/.ssh/prod_key
+
+[kubernetes_master]
+prod-k8s-master ansible_host=10.0.1.20 ansible_user=ubuntu ansible_ssh_private_key_file=~/.ssh/prod_key
+
+[kubernetes_workers]
+prod-k8s-worker-1 ansible_host=10.0.1.21 ansible_user=ubuntu ansible_ssh_private_key_file=~/.ssh/prod_key
+prod-k8s-worker-2 ansible_host=10.0.1.22 ansible_user=ubuntu ansible_ssh_private_key_file=~/.ssh/prod_key
+prod-k8s-worker-3 ansible_host=10.0.1.23 ansible_user=ubuntu ansible_ssh_private_key_file=~/.ssh/prod_key
+
+[prod:children]
+prod_servers
+kubernetes_master
+kubernetes_workers

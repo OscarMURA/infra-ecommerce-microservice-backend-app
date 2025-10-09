@@ -1,0 +1,41 @@
+---
+# Production Environment Variables
+environment: prod
+domain: ecommerce.com
+docker_version: "24.0.0"
+kubernetes_version: "1.28.0"
+
+# Docker Registry
+docker_registry_url: "registry.ecommerce.com"
+docker_registry_user: "prod_user"
+
+# Database Configuration
+db_host: "db.ecommerce.com"
+db_port: 5432
+db_name: "ecommerce_prod"
+db_user: "prod_user"
+
+# Redis Configuration
+redis_host: "redis.ecommerce.com"
+redis_port: 6379
+
+# Application Configuration
+app_replicas: 5
+app_cpu_limit: "2000m"
+app_memory_limit: "2Gi"
+app_cpu_request: "1000m"
+app_memory_request: "1Gi"
+
+# Logging
+log_level: "WARN"
+log_retention_days: 90
+
+# Monitoring
+enable_monitoring: true
+prometheus_enabled: true
+grafana_enabled: true
+
+# High Availability
+ha_enabled: true
+backup_enabled: true
+backup_retention_days: 30

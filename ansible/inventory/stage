@@ -1,0 +1,14 @@
+[stage_servers]
+stage-server-1 ansible_host=192.168.2.10 ansible_user=ubuntu ansible_ssh_private_key_file=~/.ssh/stage_key
+
+[kubernetes_master]
+stage-k8s-master ansible_host=192.168.2.20 ansible_user=ubuntu ansible_ssh_private_key_file=~/.ssh/stage_key
+
+[kubernetes_workers]
+stage-k8s-worker-1 ansible_host=192.168.2.21 ansible_user=ubuntu ansible_ssh_private_key_file=~/.ssh/stage_key
+stage-k8s-worker-2 ansible_host=192.168.2.22 ansible_user=ubuntu ansible_ssh_private_key_file=~/.ssh/stage_key
+
+[stage:children]
+stage_servers
+kubernetes_master
+kubernetes_workers

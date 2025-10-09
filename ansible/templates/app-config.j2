@@ -1,0 +1,43 @@
+---
+# Application Configuration
+environment: {{ environment }}
+domain: {{ domain }}
+
+# Database Configuration
+database:
+  host: {{ db_host }}
+  port: {{ db_port }}
+  name: {{ db_name }}
+  user: {{ db_user }}
+
+# Redis Configuration
+redis:
+  host: {{ redis_host }}
+  port: {{ redis_port }}
+
+# Application Settings
+application:
+  replicas: {{ app_replicas }}
+  resources:
+    limits:
+      cpu: {{ app_cpu_limit }}
+      memory: {{ app_memory_limit }}
+    requests:
+      cpu: {{ app_cpu_request }}
+      memory: {{ app_memory_request }}
+
+# Logging
+logging:
+  level: {{ log_level }}
+  retention_days: {{ log_retention_days }}
+
+# Monitoring
+monitoring:
+  enabled: {{ enable_monitoring }}
+  prometheus: {{ prometheus_enabled }}
+  grafana: {{ grafana_enabled }}
+
+# Docker Registry
+registry:
+  url: {{ docker_registry_url }}
+  user: {{ docker_registry_user }}

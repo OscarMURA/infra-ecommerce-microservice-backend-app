@@ -1,0 +1,36 @@
+---
+# Staging Environment Variables
+environment: stage
+domain: stage.ecommerce.local
+docker_version: "24.0.0"
+kubernetes_version: "1.28.0"
+
+# Docker Registry
+docker_registry_url: "registry.stage.ecommerce.local"
+docker_registry_user: "stage_user"
+
+# Database Configuration
+db_host: "db.stage.ecommerce.local"
+db_port: 5432
+db_name: "ecommerce_stage"
+db_user: "stage_user"
+
+# Redis Configuration
+redis_host: "redis.stage.ecommerce.local"
+redis_port: 6379
+
+# Application Configuration
+app_replicas: 3
+app_cpu_limit: "1000m"
+app_memory_limit: "1Gi"
+app_cpu_request: "500m"
+app_memory_request: "512Mi"
+
+# Logging
+log_level: "INFO"
+log_retention_days: 30
+
+# Monitoring
+enable_monitoring: true
+prometheus_enabled: true
+grafana_enabled: true
