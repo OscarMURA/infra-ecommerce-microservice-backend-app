@@ -1,0 +1,31 @@
+# Ejemplo de configuración para terraform.tfvars
+# Copia este archivo a terraform/dev/terraform.tfvars y completa con tus valores
+
+# Token de DigitalOcean (https://cloud.digitalocean.com/account/api/tokens)
+digitalocean_token = "dop_v1_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+
+# Fingerprint de tu SSH key en DigitalOcean
+# Obtenerlo con: doctl compute ssh-key list
+# o desde: https://cloud.digitalocean.com/account/security
+ssh_fingerprint = "xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx"
+
+# Región de DigitalOcean
+region = "nyc3"
+
+# Prefijo para nombrar recursos
+project_prefix = "infra-ecommerce"
+
+# Imagen base (Ubuntu 22.04 recomendado)
+base_image = "ubuntu-22-04-x64"
+
+# Tamaño de VM Dev (económico)
+dev_size = "s-1vcpu-1gb"
+
+# Tamaño del Master de Kubernetes
+k8s_master_size = "s-2vcpu-4gb"
+
+# Tamaño de los Workers de Kubernetes
+k8s_worker_size = "s-2vcpu-4gb"
+
+# Número de workers (ESCALABLE - cambia este valor para agregar más)
+k8s_worker_count = 2
