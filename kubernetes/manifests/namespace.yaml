@@ -1,0 +1,10 @@
+# Namespace para la aplicación de E-commerce
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ecommerce
+  labels:
+    name: ecommerce
+    environment: production
+    app: ecommerce-microservices
+    managed-by: terraform

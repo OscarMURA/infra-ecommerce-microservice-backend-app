@@ -1,0 +1,37 @@
+# ConfigMap para configuración de la aplicación E-commerce
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ecommerce-config
+  namespace: ecommerce
+  labels:
+    app: ecommerce
+data:
+  # Spring Profiles
+  SPRING_PROFILES_ACTIVE: "prod"
+  
+  # Eureka Configuration
+  EUREKA_CLIENT_REGION: "default"
+  EUREKA_CLIENT_AVAILABILITYZONES_DEFAULT: "myzone"
+  EUREKA_CLIENT_SERVICEURL_MYZONE: "http://service-discovery:8761/eureka"
+  EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: "http://service-discovery:8761/eureka/"
+  
+  # Zipkin Configuration
+  SPRING_ZIPKIN_BASE_URL: "http://zipkin:9411"
+  
+  # Config Server
+  SPRING_CONFIG_IMPORT: "optional:configserver:http://cloud-config:9296/"
+  
+  # Logging
+  LOGGING_LEVEL_ROOT: "INFO"
+  LOGGING_LEVEL_COM_ECOMMERCE: "DEBUG"
+  
+  # Database Configuration (valores por defecto)
+  SPRING_DATASOURCE_DRIVER_CLASS_NAME: "org.postgresql.Driver"
+  SPRING_JPA_HIBERNATE_DDL_AUTO: "update"
+  SPRING_JPA_SHOW_SQL: "false"
+  
+  # Application Configuration
+  SERVER_COMPRESSION_ENABLED: "true"
+  SPRING_MVC_THROW_EXCEPTION_IF_NO_HANDLER_FOUND: "true"
+  SPRING_WEB_RESOURCES_ADD_MAPPINGS: "false"
