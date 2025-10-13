@@ -1,0 +1,246 @@
+// Jenkins Pipeline para Infraestructura Kubernetes
+// Soporta DOKS y GKE
+
+pipeline {
+    agent any
+    
+    parameters {
+        choice(
+            name: 'PROVIDER',
+            choices: ['doks', 'gke'],
+            description: 'Proveedor de Kubernetes'
+        )
+        choice(
+            name: 'ENVIRONMENT',
+            choices: ['dev', 'staging', 'prod'],
+            description: 'Ambiente a desplegar'
+        )
+        choice(
+            name: 'ACTION',
+            choices: ['plan', 'apply', 'destroy'],
+            description: 'Acción a ejecutar'
+        )
+        booleanParam(
+            name: 'AUTO_APPROVE',
+            defaultValue: false,
+            description: 'Aprobar automáticamente (solo dev)'
+        )
+    }
+    
+    environment {
+        TF_IN_AUTOMATION = 'true'
+        TF_INPUT = 'false'
+        TF_CLI_ARGS = '-no-color'
+        WORK_DIR = "terraform/environments/${params.ENVIRONMENT}/${params.PROVIDER}"
+    }
+    
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+                script {
+                    // Emoji según el ambiente
+                    def envEmoji = params.ENVIRONMENT == 'dev' ? '🔧' : 
+                                   params.ENVIRONMENT == 'staging' ? '🎭' : '🚀'
+                    
+                    echo "${envEmoji} Pipeline iniciado"
+                    echo "Provider: ${params.PROVIDER}"
+                    echo "Environment: ${params.ENVIRONMENT}"
+                    echo "Action: ${params.ACTION}"
+                }
+            }
+        }
+        
+        stage('Setup Credentials') {
+            steps {
+                script {
+                    dir("infra-ecommerce-microservice-backend-app/${env.WORK_DIR}") {
+                        if (params.PROVIDER == 'doks') {
+                            withCredentials([string(credentialsId: 'digitalocean-token', variable: 'DO_TOKEN')]) {
+                                writeFile file: 'terraform.tfvars', text: """
+do_token = "${DO_TOKEN}"
+cluster_name = "ecommerce-${params.ENVIRONMENT}-doks"
+"""
+                            }
+                        } else if (params.PROVIDER == 'gke') {
+                            withCredentials([
+                                string(credentialsId: 'gcp-project-id', variable: 'GCP_PROJECT'),
+                                file(credentialsId: 'gcp-service-account', variable: 'GCP_CREDENTIALS')
+                            ]) {
+                                writeFile file: 'terraform.tfvars', text: """
+project_id = "${GCP_PROJECT}"
+credentials_file = "${GCP_CREDENTIALS}"
+cluster_name = "ecommerce-${params.ENVIRONMENT}-gke"
+"""
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        stage('Terraform Init') {
+            steps {
+                script {
+                    dir("infra-ecommerce-microservice-backend-app/${env.WORK_DIR}") {
+                        sh """
+                            terraform --version
+                            terraform init -upgrade
+                            terraform validate
+                        """
+                    }
+                }
+            }
+        }
+        
+        stage('Terraform Plan') {
+            when {
+                expression { params.ACTION == 'plan' || params.ACTION == 'apply' }
+            }
+            steps {
+                script {
+                    dir("infra-ecommerce-microservice-backend-app/${env.WORK_DIR}") {
+                        sh """
+                            terraform plan -out=tfplan
+                            terraform show -no-color tfplan > plan.txt
+                        """
+                        
+                        // Publicar el plan
+                        archiveArtifacts artifacts: 'plan.txt', fingerprint: true
+                        
+                        // Mostrar resumen
+                        def plan = readFile('plan.txt')
+                        echo "📋 Plan Summary:\n${plan.take(500)}..."
+                    }
+                }
+            }
+        }
+        
+        stage('Approval') {
+            when {
+                expression { 
+                    params.ACTION == 'apply' && 
+                    (params.ENVIRONMENT == 'prod' || 
+                     params.ENVIRONMENT == 'staging' ||
+                     !params.AUTO_APPROVE)
+                }
+            }
+            steps {
+                script {
+                    def approvalMessage = params.ENVIRONMENT == 'prod' ? 
+                        '🚨 PRODUCCIÓN - Revisar EXTREMADAMENTE cuidadosamente' : 
+                        params.ENVIRONMENT == 'staging' ?
+                        '🎭 STAGING - Revisar antes de aplicar' :
+                        '🔧 DEV - Revisar y aprobar'
+                    
+                    def approvalTimeout = params.ENVIRONMENT == 'prod' ? 60 : 30
+                    def approvalSubmitter = params.ENVIRONMENT == 'prod' ? 'admin' : 'admin,developer'
+                    
+                    timeout(time: approvalTimeout, unit: 'MINUTES') {
+                        input message: approvalMessage, 
+                              ok: 'Aplicar cambios',
+                              submitter: approvalSubmitter
+                    }
+                }
+            }
+        }
+        
+        stage('Terraform Apply') {
+            when {
+                expression { params.ACTION == 'apply' }
+            }
+            steps {
+                script {
+                    dir("infra-ecommerce-microservice-backend-app/${env.WORK_DIR}") {
+                        sh 'terraform apply tfplan'
+                    }
+                }
+            }
+        }
+        
+        stage('Terraform Destroy') {
+            when {
+                expression { params.ACTION == 'destroy' }
+            }
+            steps {
+                script {
+                    // Mensaje según ambiente
+                    def destroyMessage = params.ENVIRONMENT == 'prod' ?
+                        '🚨🚨🚨 DESTRUIR PRODUCCIÓN - Esta acción NO se puede deshacer' :
+                        "�️ DESTRUIR ${params.ENVIRONMENT.toUpperCase()} - Esta acción NO se puede deshacer"
+                    
+                    timeout(time: 30, unit: 'MINUTES') {
+                        input message: destroyMessage, 
+                              ok: 'Destruir',
+                              submitter: 'admin'
+                    }
+                    
+                    dir("infra-ecommerce-microservice-backend-app/${env.WORK_DIR}") {
+                        sh 'terraform destroy -auto-approve'
+                    }
+                }
+            }
+        }
+        
+        stage('Verify Cluster') {
+            when {
+                expression { params.ACTION == 'apply' }
+            }
+            steps {
+                script {
+                    dir("infra-ecommerce-microservice-backend-app/${env.WORK_DIR}") {
+                        // Guardar outputs
+                        sh 'terraform output -json > outputs.json'
+                        archiveArtifacts artifacts: 'outputs.json', fingerprint: true
+                        
+                        // Ejecutar script de verificación
+                        sh """
+                            chmod +x ../../../jenkins/scripts/validate-cluster.sh
+                            ../../../jenkins/scripts/validate-cluster.sh ${params.PROVIDER} ${params.ENVIRONMENT}
+                        """
+                    }
+                }
+            }
+        }
+        
+        stage('Health Check') {
+            when {
+                expression { params.ACTION == 'apply' }
+            }
+            steps {
+                script {
+                    // Esperar un poco para que el cluster esté listo
+                    sleep(time: 30, unit: 'SECONDS')
+                    
+                    sh """
+                        chmod +x infra-ecommerce-microservice-backend-app/jenkins/scripts/health-check.sh
+                        infra-ecommerce-microservice-backend-app/jenkins/scripts/health-check.sh ${params.PROVIDER} ${params.ENVIRONMENT}
+                    """
+                }
+            }
+        }
+    }
+    
+    post {
+        success {
+            script {
+                def successEmoji = params.ENVIRONMENT == 'dev' ? '✅' : 
+                                   params.ENVIRONMENT == 'staging' ? '🎉' : '🚀'
+                echo "${successEmoji} Pipeline completado exitosamente en ${params.ENVIRONMENT.toUpperCase()}"
+                
+                if (params.ACTION == 'apply') {
+                    dir("infra-ecommerce-microservice-backend-app/${env.WORK_DIR}") {
+                        def outputs = sh(script: 'terraform output -json', returnStdout: true)
+                        echo "📊 Outputs:\n${outputs}"
+                    }
+                }
+            }
+        }
+        failure {
+            echo '❌ Pipeline falló'
+        }
+        always {
+            cleanWs()
+        }
+    }
+}
