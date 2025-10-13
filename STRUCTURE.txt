@@ -1,0 +1,49 @@
+.
+├── docs
+│   ├── doks-setup.md
+│   ├── gke-setup.md
+│   └── jenkins-setup.md
+├── jenkins
+│   ├── Jenkinsfile
+│   └── scripts
+│       ├── health-check.sh
+│       └── validate-cluster.sh
+├── kubernetes
+│   └── manifests
+│       ├── configmap.yaml
+│       ├── namespace.yaml
+│       └── secret.yaml
+├── QUICK_START.md
+├── README.md
+├── STRUCTURE.txt
+└── terraform
+    ├── environments
+    │   ├── dev
+    │   │   ├── doks
+    │   │   └── gke
+    │   └── prod
+    │       ├── doks
+    │       └── gke
+    ├── modules
+    │   ├── doks
+    │   │   ├── main.tf
+    │   │   ├── outputs.tf
+    │   │   ├── variables.tf
+    │   │   └── versions.tf
+    │   ├── gke
+    │   │   ├── main.tf
+    │   │   ├── outputs.tf
+    │   │   ├── variables.tf
+    │   │   └── versions.tf
+    │   └── kubernetes-config
+    │       ├── main.tf
+    │       ├── outputs.tf
+    │       ├── variables.tf
+    │       └── versions.tf
+    └── scripts
+        ├── apply.sh
+        ├── destroy.sh
+        ├── init.sh
+        └── plan.sh
+
+19 directories, 28 files

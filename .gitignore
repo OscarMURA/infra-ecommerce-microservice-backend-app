@@ -1,0 +1,89 @@
+# .gitignore para infraestructura Terraform
+
+# Local .terraform directories
+**/.terraform/*
+
+# .tfstate files
+*.tfstate
+*.tfstate.*
+
+# Crash log files
+crash.log
+crash.*.log
+
+# Exclude all .tfvars files, which are likely to contain sensitive data
+*.tfvars
+*.tfvars.json
+
+# Ignore override files as they are usually used to override resources locally
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Include override files you do wish to add to version control using negation pattern
+# !example_override.tf
+
+# Include tfplan files to ignore the plan output of command: terraform plan -out=tfplan
+*tfplan*
+
+# Ignore CLI configuration files
+.terraformrc
+terraform.rc
+
+# Kubeconfig files
+kubeconfig*
+*.kubeconfig
+*.yaml.bak
+
+# SSH Keys
+*.pem
+*.key
+id_rsa*
+
+# Service Account Keys
+*service-account*.json
+*credentials*.json
+gcp-*.json
+
+# Terraform outputs
+outputs.json
+
+# OS files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Node
+node_modules/
+package-lock.json
+
+# Logs
+*.log
+logs/
+
+# Backup files
+*.backup
+*.bak
+*.tmp
+
+# Jenkins
+.jenkins/
+builds/
+workspace/
+
+# Docker
+.dockerignore
