@@ -1,0 +1,41 @@
+# Valores por defecto para ambiente prod - DOKS
+# IMPORTANTE: NO commitear este archivo con valores reales
+
+# do_token = "your-production-digitalocean-token-here"
+
+cluster_name       = "ecommerce-prod-doks"
+region             = "nyc1"
+kubernetes_version = "1.28.2-do.0"
+
+# Node Pool - Configuración robusta para producción
+node_size           = "s-4vcpu-8gb"
+node_count          = 3
+enable_auto_scaling = true
+min_nodes           = 3
+max_nodes           = 6
+
+# Tags
+tags = ["ecommerce", "microservices", "production"]
+
+# Maintenance Window
+maintenance_day        = "sunday"
+maintenance_start_time = "02:00"
+
+# Critical Node Pool - HABILITADO para producción
+enable_critical_node_pool = true
+critical_node_size        = "s-4vcpu-8gb"
+critical_node_count       = 2
+critical_min_nodes        = 2
+critical_max_nodes        = 4
+
+# Firewall
+enable_firewall = true
+
+# Container Registry - HABILITADO para producción
+enable_container_registry = true
+registry_name             = "ecommerce-prod-registry"
+registry_tier             = "professional"
+registry_region           = "nyc3"
+
+# Kubeconfig
+save_kubeconfig = false
