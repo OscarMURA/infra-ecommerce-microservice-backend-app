@@ -1,0 +1,36 @@
+# Valores por defecto para ambiente staging - DOKS
+# Copiar este archivo a terraform.tfvars y ajustar los valores
+
+# do_token = "your-digitalocean-token-here"
+
+cluster_name       = "ecommerce-staging-doks"
+region             = "nyc1"
+kubernetes_version = "1.28.2-do.0"
+
+# Node Pool - Configuración intermedia
+node_size           = "s-2vcpu-4gb"
+node_count          = 3
+enable_auto_scaling = true
+min_nodes           = 2
+max_nodes           = 5
+
+# Tags
+tags = ["ecommerce", "microservices", "staging"]
+
+# Maintenance Window
+maintenance_day        = "saturday"
+maintenance_start_time = "03:00"
+
+# Critical Node Pool - Opcional para staging
+enable_critical_node_pool = false
+
+# Firewall
+enable_firewall = true
+
+# Container Registry - Opcional
+enable_container_registry = false
+# registry_name             = "ecommerce-staging-registry"
+# registry_tier             = "basic"
+
+# Kubeconfig
+save_kubeconfig = false
