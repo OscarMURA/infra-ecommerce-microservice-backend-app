@@ -1,0 +1,64 @@
+# Valores por defecto para ambiente dev - GKE
+# Copiar a terraform.tfvars y ajustar
+
+# project_id       = "your-gcp-project-id"
+# credentials_file = "/path/to/service-account.json"
+
+cluster_name       = "ecommerce-dev-gke"
+region             = "us-central1"
+zone               = "us-central1-a"
+regional           = false
+kubernetes_version = "1.28"
+release_channel    = "REGULAR"
+
+# Network
+subnet_cidr   = "10.0.0.0/20"
+pods_cidr     = "10.4.0.0/14"
+services_cidr = "10.8.0.0/20"
+
+# Private Cluster
+enable_private_nodes    = true
+enable_private_endpoint = false
+master_ipv4_cidr_block  = "172.16.0.0/28"
+
+# Node Pool
+machine_type   = "e2-medium"
+disk_size_gb   = 50
+disk_type      = "pd-balanced"
+image_type     = "COS_CONTAINERD"
+node_count     = 2
+min_node_count = 1
+max_node_count = 3
+auto_repair    = true
+auto_upgrade   = true
+
+# Labels
+labels = {
+  "project" = "ecommerce"
+  "env"     = "dev"
+}
+
+node_labels = {}
+node_tags   = ["gke-node", "ecommerce", "dev"]
+
+# Critical Node Pool - Disabled for dev
+enable_critical_node_pool = false
+
+# Maintenance
+maintenance_start_time = "03:00"
+
+# Addons
+enable_http_load_balancing            = true
+enable_horizontal_pod_autoscaling     = true
+enable_network_policy                 = true
+enable_gce_persistent_disk_csi_driver = true
+
+# Logging y Monitoring
+logging_components     = ["SYSTEM_COMPONENTS", "WORKLOADS"]
+monitoring_components  = ["SYSTEM_COMPONENTS"]
+enable_managed_prometheus = false
+
+# Security
+enable_binary_authorization = false
+enable_secure_boot          = true
+enable_integrity_monitoring = true

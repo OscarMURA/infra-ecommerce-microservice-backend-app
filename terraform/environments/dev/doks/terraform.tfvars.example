@@ -1,0 +1,36 @@
+# Valores por defecto para ambiente dev - DOKS
+# Copiar este archivo a terraform.tfvars y ajustar los valores
+
+# do_token = "your-digitalocean-token-here"
+
+cluster_name       = "ecommerce-dev-doks"
+region             = "nyc1"
+kubernetes_version = "1.28.2-do.0"
+
+# Node Pool Configuration
+node_size           = "s-2vcpu-4gb"
+node_count          = 2
+enable_auto_scaling = true
+min_nodes           = 1
+max_nodes           = 3
+
+# Tags
+tags = ["ecommerce", "microservices", "dev"]
+
+# Maintenance Window
+maintenance_day        = "sunday"
+maintenance_start_time = "04:00"
+
+# Critical Node Pool - Disabled for dev
+enable_critical_node_pool = false
+
+# Firewall
+enable_firewall = true
+
+# Container Registry - Optional for dev
+enable_container_registry = false
+# registry_name             = "ecommerce-dev-registry"
+# registry_tier             = "starter"
+
+# Kubeconfig
+save_kubeconfig = false
