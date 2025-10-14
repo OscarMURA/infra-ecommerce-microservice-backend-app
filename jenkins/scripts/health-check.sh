@@ -88,7 +88,7 @@ declare -a checks_failed=()
 
 # 1. Verificar API Server
 log_info "1. Verificando API Server..."
-if kubectl version --short &>/dev/null; then
+if kubectl cluster-info 2>/dev/null | grep -q "Kubernetes control plane"; then
     log_success "API Server respondiendo"
     checks_passed+=("API Server")
 else
