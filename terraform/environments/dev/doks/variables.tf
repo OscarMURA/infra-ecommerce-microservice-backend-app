@@ -29,7 +29,7 @@ variable "kubernetes_version" {
 variable "vpc_ip_range" {
   description = "Rango de IPs para la VPC"
   type        = string
-  default     = "10.116.0.0/16"  # Rango seguro y válido para DOKS
+  default     = "10.120.0.0/16"  # Nuevo rango sin conflictos
 }
 
 # Node Pool
