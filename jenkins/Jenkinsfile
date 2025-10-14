@@ -47,6 +47,18 @@ pipeline {
                     echo "Provider: ${params.PROVIDER}"
                     echo "Environment: ${params.ENVIRONMENT}"
                     echo "Action: ${params.ACTION}"
+                    echo "Workspace: ${env.WORKSPACE}"
+                    echo "Working Dir: ${env.WORK_DIR}"
+                    
+                    // Verificar estructura del workspace
+                    sh """
+                        echo ""
+                        echo "📦 Estructura del workspace:"
+                        ls -la
+                        echo ""
+                        echo "📁 Verificando directorio de trabajo:"
+                        ls -la ${env.WORK_DIR} || echo "❌ Directorio no encontrado"
+                    """
                 }
             }
         }
@@ -54,7 +66,7 @@ pipeline {
         stage('Setup Credentials') {
             steps {
                 script {
-                    dir("infra-ecommerce-microservice-backend-app/${env.WORK_DIR}") {
+                    dir("${env.WORK_DIR}") {
                         if (params.PROVIDER == 'doks') {
                             withCredentials([string(credentialsId: 'digitalocean-token', variable: 'DO_TOKEN')]) {
                                 writeFile file: 'terraform.tfvars', text: """
@@ -82,7 +94,7 @@ cluster_name = "ecommerce-${params.ENVIRONMENT}-gke"
         stage('Terraform Init') {
             steps {
                 script {
-                    dir("infra-ecommerce-microservice-backend-app/${env.WORK_DIR}") {
+                    dir("${env.WORK_DIR}") {
                         sh """
                             echo "📁 Directorio actual:"
                             pwd
@@ -113,7 +125,7 @@ cluster_name = "ecommerce-${params.ENVIRONMENT}-gke"
             }
             steps {
                 script {
-                    dir("infra-ecommerce-microservice-backend-app/${env.WORK_DIR}") {
+                    dir("${env.WORK_DIR}") {
                         sh """
                             terraform plan -out=tfplan
                             terraform show -no-color tfplan > plan.txt
@@ -165,7 +177,7 @@ cluster_name = "ecommerce-${params.ENVIRONMENT}-gke"
             }
             steps {
                 script {
-                    dir("infra-ecommerce-microservice-backend-app/${env.WORK_DIR}") {
+                    dir("${env.WORK_DIR}") {
                         sh 'terraform apply tfplan'
                     }
                 }
@@ -189,7 +201,7 @@ cluster_name = "ecommerce-${params.ENVIRONMENT}-gke"
                               submitter: 'admin'
                     }
                     
-                    dir("infra-ecommerce-microservice-backend-app/${env.WORK_DIR}") {
+                    dir("${env.WORK_DIR}") {
                         sh 'terraform destroy -auto-approve'
                     }
                 }
@@ -202,7 +214,7 @@ cluster_name = "ecommerce-${params.ENVIRONMENT}-gke"
             }
             steps {
                 script {
-                    dir("infra-ecommerce-microservice-backend-app/${env.WORK_DIR}") {
+                    dir("${env.WORK_DIR}") {
                         // Guardar outputs
                         sh 'terraform output -json > outputs.json'
                         archiveArtifacts artifacts: 'outputs.json', fingerprint: true
@@ -227,8 +239,8 @@ cluster_name = "ecommerce-${params.ENVIRONMENT}-gke"
                     sleep(time: 30, unit: 'SECONDS')
                     
                     sh """
-                        chmod +x infra-ecommerce-microservice-backend-app/jenkins/scripts/health-check.sh
-                        infra-ecommerce-microservice-backend-app/jenkins/scripts/health-check.sh ${params.PROVIDER} ${params.ENVIRONMENT}
+                        chmod +x jenkins/scripts/health-check.sh
+                        jenkins/scripts/health-check.sh ${params.PROVIDER} ${params.ENVIRONMENT}
                     """
                 }
             }
@@ -243,7 +255,7 @@ cluster_name = "ecommerce-${params.ENVIRONMENT}-gke"
                 echo "${successEmoji} Pipeline completado exitosamente en ${params.ENVIRONMENT.toUpperCase()}"
                 
                 if (params.ACTION == 'apply') {
-                    dir("infra-ecommerce-microservice-backend-app/${env.WORK_DIR}") {
+                    dir("${env.WORK_DIR}") {
                         def outputs = sh(script: 'terraform output -json', returnStdout: true)
                         echo "📊 Outputs:\n${outputs}"
                     }
