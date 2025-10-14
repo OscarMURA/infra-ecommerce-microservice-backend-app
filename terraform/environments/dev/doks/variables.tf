@@ -42,7 +42,7 @@ variable "node_size" {
 variable "node_count" {
   description = "Número de nodos"
   type        = number
-  default     = 2
+  default     = 1  # Reducido a 1 nodo para evitar límite de droplets
 }
 
 variable "enable_auto_scaling" {
@@ -60,7 +60,7 @@ variable "min_nodes" {
 variable "max_nodes" {
   description = "Número máximo de nodos"
   type        = number
-  default     = 3
+  default     = 2  # Reducido a 2 para evitar exceder límite de droplets
 }
 
 # Tags y Labels
