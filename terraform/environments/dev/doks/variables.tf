@@ -23,7 +23,7 @@ variable "region" {
 variable "kubernetes_version" {
   description = "Versión de Kubernetes"
   type        = string
-  default     = "1.28.2-do.0"
+  default     = "1.30.2-do.0"  # Versión actualizada y estable
 }
 
 variable "vpc_ip_range" {
