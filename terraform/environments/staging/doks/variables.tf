@@ -9,7 +9,7 @@ variable "do_token" {
 variable "cluster_name" {
   description = "Nombre del cluster"
   type        = string
-  default     = "ecommerce-staging-doks"
+  default     = "ecommerce-staging-doks-v2"
 }
 
 variable "region" {
@@ -21,13 +21,13 @@ variable "region" {
 variable "kubernetes_version" {
   description = "Versión de Kubernetes"
   type        = string
-  default     = "1.28.2-do.0"
+  default     = "1.32.5-do.4"
 }
 
 variable "vpc_ip_range" {
   description = "Rango de IPs para la VPC"
   type        = string
-  default     = "10.15.0.0/16"
+  default     = "10.130.0.0/16"
 }
 
 # Node Pool - Configuración intermedia para staging
@@ -40,7 +40,7 @@ variable "node_size" {
 variable "node_count" {
   description = "Número de nodos"
   type        = number
-  default     = 3
+  default     = 2
 }
 
 variable "enable_auto_scaling" {
@@ -58,7 +58,7 @@ variable "min_nodes" {
 variable "max_nodes" {
   description = "Número máximo de nodos"
   type        = number
-  default     = 5
+  default     = 3
 }
 
 variable "tags" {
