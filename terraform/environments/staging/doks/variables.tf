@@ -40,7 +40,7 @@ variable "node_size" {
 variable "node_count" {
   description = "Número de nodos"
   type        = number
-  default     = 2
+  default     = 1
 }
 
 variable "enable_auto_scaling" {
@@ -52,13 +52,13 @@ variable "enable_auto_scaling" {
 variable "min_nodes" {
   description = "Número mínimo de nodos"
   type        = number
-  default     = 2
+  default     = 1
 }
 
 variable "max_nodes" {
   description = "Número máximo de nodos"
   type        = number
-  default     = 3
+  default     = 2
 }
 
 variable "tags" {
