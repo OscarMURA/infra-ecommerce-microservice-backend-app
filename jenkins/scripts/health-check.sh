@@ -114,8 +114,8 @@ log_info "2. Verificando CoreDNS..."
 if [ "$PROVIDER" == "gke" ]; then
     # En GKE, verificar kube-dns en lugar de coredns
     if kubectl get deployment kube-dns -n kube-system &>/dev/null; then
-        local dns_pods=$(kubectl get pods -n kube-system -l k8s-app=kube-dns --no-headers 2>/dev/null | wc -l)
-        local dns_running=$(kubectl get pods -n kube-system -l k8s-app=kube-dns --no-headers 2>/dev/null | grep "Running" | wc -l)
+        dns_pods=$(kubectl get pods -n kube-system -l k8s-app=kube-dns --no-headers 2>/dev/null | wc -l)
+        dns_running=$(kubectl get pods -n kube-system -l k8s-app=kube-dns --no-headers 2>/dev/null | grep "Running" | wc -l)
         if [ "$dns_running" -gt 0 ]; then
             log_success "kube-dns: $dns_running/$dns_pods pods corriendo"
             checks_passed+=("CoreDNS")
