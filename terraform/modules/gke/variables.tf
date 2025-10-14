@@ -42,6 +42,12 @@ variable "release_channel" {
   default     = "REGULAR"
 }
 
+variable "deletion_protection" {
+  description = "Protección contra eliminación del cluster"
+  type        = bool
+  default     = true
+}
+
 # Network Configuration
 variable "subnet_cidr" {
   description = "CIDR para la subnet"

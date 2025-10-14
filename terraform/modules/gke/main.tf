@@ -55,6 +55,9 @@ resource "google_container_cluster" "primary" {
   location = var.regional ? var.region : var.zone
   project  = var.project_id
 
+  # Protección contra eliminación
+  deletion_protection = var.deletion_protection
+
   # Versión de Kubernetes
   min_master_version = var.kubernetes_version
 

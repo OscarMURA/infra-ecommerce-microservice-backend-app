@@ -32,6 +32,9 @@ module "gke_cluster" {
   kubernetes_version = var.kubernetes_version
   release_channel    = var.release_channel
 
+  # Protección contra eliminación (deshabilitada para dev)
+  deletion_protection = false
+
   # Network Configuration
   subnet_cidr   = var.subnet_cidr
   pods_cidr     = var.pods_cidr
