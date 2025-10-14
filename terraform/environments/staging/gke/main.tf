@@ -15,7 +15,7 @@ terraform {
 provider "google" {
   project     = var.project_id
   region      = var.region
-  credentials = var.credentials_file
+  credentials = file(var.credentials_file)
 }
 
 module "gke_cluster" {
