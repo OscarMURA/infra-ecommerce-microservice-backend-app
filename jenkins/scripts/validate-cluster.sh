@@ -52,6 +52,18 @@ if [ "$PROVIDER" == "doks" ]; then
 elif [ "$PROVIDER" == "gke" ]; then
     log_info "Configurando kubectl para GKE..."
     
+    # Agregar gcloud al PATH si existe
+    if [ -d "/opt/google-cloud-sdk/google-cloud-sdk/bin" ]; then
+        export PATH="/opt/google-cloud-sdk/google-cloud-sdk/bin:$PATH"
+    fi
+    
+    # Verificar que gcloud esté disponible
+    if ! command -v gcloud &> /dev/null; then
+        log_error "gcloud CLI no está instalado"
+        log_info "Instalar con: curl https://sdk.cloud.google.com | bash"
+        exit 1
+    fi
+    
     # Autenticar gcloud si tenemos las credenciales
     if [ -n "$GOOGLE_APPLICATION_CREDENTIALS" ]; then
         gcloud auth activate-service-account --key-file="$GOOGLE_APPLICATION_CREDENTIALS" >/dev/null 2>&1
