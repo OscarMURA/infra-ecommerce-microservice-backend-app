@@ -13,6 +13,9 @@ resource "digitalocean_kubernetes_cluster" "main" {
   region  = var.region
   version = var.kubernetes_version
   vpc_uuid = digitalocean_vpc.kubernetes_vpc.id
+  
+  # Destruir automáticamente todos los recursos asociados (LBs, volumes, etc.)
+  destroy_all_associated_resources = true
 
   tags = concat(var.tags, ["terraform", "ecommerce"])
 
