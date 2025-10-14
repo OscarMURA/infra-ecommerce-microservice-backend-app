@@ -84,8 +84,22 @@ cluster_name = "ecommerce-${params.ENVIRONMENT}-gke"
                 script {
                     dir("infra-ecommerce-microservice-backend-app/${env.WORK_DIR}") {
                         sh """
+                            echo "📁 Directorio actual:"
+                            pwd
+                            echo ""
+                            echo "📄 Archivos en el directorio:"
+                            ls -la
+                            echo ""
+                            echo "🔍 Archivos .tf encontrados:"
+                            find . -name "*.tf" -type f || echo "⚠️  No se encontraron archivos .tf"
+                            echo ""
+                            echo "🔧 Versión de Terraform:"
                             terraform --version
+                            echo ""
+                            echo "🚀 Inicializando Terraform..."
                             terraform init -upgrade
+                            echo ""
+                            echo "✅ Validando configuración..."
                             terraform validate
                         """
                     }
@@ -237,7 +251,14 @@ cluster_name = "ecommerce-${params.ENVIRONMENT}-gke"
             }
         }
         failure {
-            echo '❌ Pipeline falló'
+            script {
+                def errorMsg = "❌ Pipeline falló en ${params.ENVIRONMENT.toUpperCase()}"
+                echo errorMsg
+                echo "Provider: ${params.PROVIDER}"
+                echo "Action: ${params.ACTION}"
+                echo "Workspace: ${env.WORKSPACE}"
+                echo "Working Dir: ${env.WORK_DIR}"
+            }
         }
         always {
             cleanWs()
