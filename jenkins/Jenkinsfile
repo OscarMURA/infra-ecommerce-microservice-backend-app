@@ -79,10 +79,14 @@ do_token = "${DO_TOKEN}"
                                 string(credentialsId: 'gcp-project-id', variable: 'GCP_PROJECT'),
                                 file(credentialsId: 'gcp-service-account', variable: 'GCP_CREDENTIALS')
                             ]) {
-                                // Solo configurar credenciales GCP, usar cluster_name del variables.tf
+                                // Leer el contenido del archivo JSON y copiarlo al directorio de trabajo
+                                def credentialsContent = readFile(file: "${GCP_CREDENTIALS}")
+                                writeFile file: 'gcp-credentials.json', text: credentialsContent
+                                
+                                // Configurar variables para Terraform
                                 writeFile file: 'terraform.tfvars', text: """
 project_id = "${GCP_PROJECT}"
-credentials_file = "${GCP_CREDENTIALS}"
+credentials_file = "gcp-credentials.json"
 """
                             }
                         }
