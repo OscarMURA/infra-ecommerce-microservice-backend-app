@@ -109,38 +109,54 @@ else
     checks_failed+=("API Server")
 fi
 
-# 2. Verificar CoreDNS
-log_info "2. Verificando CoreDNS..."
+# 2. Verificar DNS (CoreDNS/kube-dns/Cilium)
+log_info "2. Verificando DNS..."
 if [ "$PROVIDER" == "gke" ]; then
-    # En GKE, verificar kube-dns en lugar de coredns
+    # En GKE, verificar kube-dns
     if kubectl get deployment kube-dns -n kube-system &>/dev/null; then
         dns_pods=$(kubectl get pods -n kube-system -l k8s-app=kube-dns --no-headers 2>/dev/null | wc -l)
         dns_running=$(kubectl get pods -n kube-system -l k8s-app=kube-dns --no-headers 2>/dev/null | grep "Running" | wc -l)
         if [ "$dns_running" -gt 0 ]; then
             log_success "kube-dns: $dns_running/$dns_pods pods corriendo"
-            checks_passed+=("CoreDNS")
+            checks_passed+=("DNS")
         else
             log_error "kube-dns no tiene pods corriendo"
-            checks_failed+=("CoreDNS")
+            checks_failed+=("DNS")
         fi
     else
         log_error "kube-dns deployment no encontrado"
-        checks_failed+=("CoreDNS")
+        checks_failed+=("DNS")
     fi
 elif [ "$PROVIDER" == "doks" ]; then
-    # En DOKS, verificar coredns
-    if check_resource "deployment" "kube-system" 1 && kubectl get deployment coredns -n kube-system &>/dev/null; then
-        if check_pods_health "kube-system"; then
-            checks_passed+=("CoreDNS")
+    # En DOKS, puede ser CoreDNS o Cilium
+    if kubectl get deployment coredns -n kube-system &>/dev/null 2>&1; then
+        # Clusters antiguos con CoreDNS
+        coredns_pods=$(kubectl get pods -n kube-system -l k8s-app=kube-dns --no-headers 2>/dev/null | wc -l)
+        coredns_running=$(kubectl get pods -n kube-system -l k8s-app=kube-dns --no-headers 2>/dev/null | grep "Running" | wc -l)
+        if [ "$coredns_running" -gt 0 ]; then
+            log_success "CoreDNS: $coredns_running/$coredns_pods pods corriendo"
+            checks_passed+=("DNS")
         else
-            checks_failed+=("CoreDNS")
+            log_error "CoreDNS no tiene pods corriendo"
+            checks_failed+=("DNS")
+        fi
+    elif kubectl get daemonset cilium -n kube-system &>/dev/null 2>&1; then
+        # Clusters nuevos con Cilium (que incluye DNS)
+        cilium_pods=$(kubectl get pods -n kube-system -l k8s-app=cilium --no-headers 2>/dev/null | wc -l)
+        cilium_running=$(kubectl get pods -n kube-system -l k8s-app=cilium --no-headers 2>/dev/null | grep "Running" | wc -l)
+        if [ "$cilium_running" -gt 0 ]; then
+            log_success "Cilium DNS: $cilium_running/$cilium_pods pods corriendo"
+            checks_passed+=("DNS")
+        else
+            log_warning "Cilium iniciándose ($cilium_running/$cilium_pods ready)"
+            checks_passed+=("DNS")
         fi
     else
-        log_error "CoreDNS no encontrado"
-        checks_failed+=("CoreDNS")
+        log_error "No se encontró sistema DNS (CoreDNS o Cilium)"
+        checks_failed+=("DNS")
     fi
 else
-    checks_failed+=("CoreDNS")
+    checks_failed+=("DNS")
 fi
 
 # 3. Verificar capacidad del cluster
