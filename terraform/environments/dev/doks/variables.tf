@@ -11,7 +11,7 @@ variable "do_token" {
 variable "cluster_name" {
   description = "Nombre del cluster"
   type        = string
-  default     = "ecommerce-dev-doks"
+  default     = "ecommerce-dev-doks-v2"  # Nombre actualizado para evitar conflicto con VPC existente
 }
 
 variable "region" {
