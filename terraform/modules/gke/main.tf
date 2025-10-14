@@ -1,14 +1,5 @@
 # Google Kubernetes Engine (GKE) Module
 
-terraform {
-  required_providers {
-    google = {
-      source  = "hashicorp/google"
-      version = "~> 5.0"
-    }
-  }
-}
-
 # VPC Network
 resource "google_compute_network" "vpc" {
   name                    = "${var.cluster_name}-vpc"

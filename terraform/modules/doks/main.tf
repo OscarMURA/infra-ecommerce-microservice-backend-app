@@ -1,14 +1,5 @@
 # DigitalOcean Kubernetes Service (DOKS) Module
 
-terraform {
-  required_providers {
-    digitalocean = {
-      source  = "digitalocean/digitalocean"
-      version = "~> 2.0"
-    }
-  }
-}
-
 # VPC para el cluster
 resource "digitalocean_vpc" "kubernetes_vpc" {
   name     = "${var.cluster_name}-vpc"
