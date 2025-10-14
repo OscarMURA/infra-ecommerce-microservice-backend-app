@@ -6,7 +6,14 @@ set -e
 PROVIDER=$1
 ENVIRONMENT=$2
 
-echo "🏥 Ejecutando health check..."
+echo "🏥 Ejecutando health check para ${PROVIDER} ${ENVIRONMENT}..."
+
+# Validar provider
+if [ "$PROVIDER" != "doks" ] && [ "$PROVIDER" != "gke" ]; then
+    echo "❌ Provider no soportado: $PROVIDER"
+    echo "ℹ Providers soportados: doks, gke"
+    exit 1
+fi
 
 # Colores
 GREEN='\033[0;32m'

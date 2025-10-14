@@ -230,13 +230,25 @@ credentials_file = "${GCP_CREDENTIALS}"
                         sh 'terraform output -json > outputs.json'
                         archiveArtifacts artifacts: 'outputs.json', fingerprint: true
                         
-                        // Ejecutar script de verificación usando ruta absoluta con credenciales
-                        withCredentials([string(credentialsId: 'digitalocean-token', variable: 'DIGITALOCEAN_TOKEN')]) {
-                            sh """
-                                chmod +x ${env.WORKSPACE}/jenkins/scripts/validate-cluster.sh
-                                export DIGITALOCEAN_TOKEN=\${DIGITALOCEAN_TOKEN}
-                                ${env.WORKSPACE}/jenkins/scripts/validate-cluster.sh ${params.PROVIDER} ${params.ENVIRONMENT}
-                            """
+                        // Ejecutar script de verificación según el provider
+                        if (params.PROVIDER == 'doks') {
+                            withCredentials([string(credentialsId: 'digitalocean-token', variable: 'DIGITALOCEAN_TOKEN')]) {
+                                sh """
+                                    chmod +x ${env.WORKSPACE}/jenkins/scripts/validate-cluster.sh
+                                    export DIGITALOCEAN_TOKEN=\${DIGITALOCEAN_TOKEN}
+                                    ${env.WORKSPACE}/jenkins/scripts/validate-cluster.sh ${params.PROVIDER} ${params.ENVIRONMENT}
+                                """
+                            }
+                        } else if (params.PROVIDER == 'gke') {
+                            withCredentials([
+                                file(credentialsId: 'gcp-service-account', variable: 'GOOGLE_APPLICATION_CREDENTIALS')
+                            ]) {
+                                sh """
+                                    chmod +x ${env.WORKSPACE}/jenkins/scripts/validate-cluster.sh
+                                    export GOOGLE_APPLICATION_CREDENTIALS=\${GOOGLE_APPLICATION_CREDENTIALS}
+                                    ${env.WORKSPACE}/jenkins/scripts/validate-cluster.sh ${params.PROVIDER} ${params.ENVIRONMENT}
+                                """
+                            }
                         }
                     }
                 }
@@ -252,12 +264,25 @@ credentials_file = "${GCP_CREDENTIALS}"
                     // Esperar un poco para que el cluster esté listo
                     sleep(time: 30, unit: 'SECONDS')
                     
-                    withCredentials([string(credentialsId: 'digitalocean-token', variable: 'DIGITALOCEAN_TOKEN')]) {
-                        sh """
-                            chmod +x ${env.WORKSPACE}/jenkins/scripts/health-check.sh
-                            export DIGITALOCEAN_TOKEN=\${DIGITALOCEAN_TOKEN}
-                            ${env.WORKSPACE}/jenkins/scripts/health-check.sh ${params.PROVIDER} ${params.ENVIRONMENT}
-                        """
+                    // Ejecutar health check según el provider
+                    if (params.PROVIDER == 'doks') {
+                        withCredentials([string(credentialsId: 'digitalocean-token', variable: 'DIGITALOCEAN_TOKEN')]) {
+                            sh """
+                                chmod +x ${env.WORKSPACE}/jenkins/scripts/health-check.sh
+                                export DIGITALOCEAN_TOKEN=\${DIGITALOCEAN_TOKEN}
+                                ${env.WORKSPACE}/jenkins/scripts/health-check.sh ${params.PROVIDER} ${params.ENVIRONMENT}
+                            """
+                        }
+                    } else if (params.PROVIDER == 'gke') {
+                        withCredentials([
+                            file(credentialsId: 'gcp-service-account', variable: 'GOOGLE_APPLICATION_CREDENTIALS')
+                        ]) {
+                            sh """
+                                chmod +x ${env.WORKSPACE}/jenkins/scripts/health-check.sh
+                                export GOOGLE_APPLICATION_CREDENTIALS=\${GOOGLE_APPLICATION_CREDENTIALS}
+                                ${env.WORKSPACE}/jenkins/scripts/health-check.sh ${params.PROVIDER} ${params.ENVIRONMENT}
+                            """
+                        }
                     }
                 }
             }

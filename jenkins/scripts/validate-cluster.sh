@@ -51,15 +51,28 @@ if [ "$PROVIDER" == "doks" ]; then
     }
 elif [ "$PROVIDER" == "gke" ]; then
     log_info "Configurando kubectl para GKE..."
-    PROJECT_ID=$(jq -r '.cluster_id.value' outputs.json | cut -d'/' -f4)
-    REGION=$(jq -r '.cluster_region.value' outputs.json)
     
+    # Autenticar gcloud si tenemos las credenciales
+    if [ -n "$GOOGLE_APPLICATION_CREDENTIALS" ]; then
+        gcloud auth activate-service-account --key-file="$GOOGLE_APPLICATION_CREDENTIALS" >/dev/null 2>&1
+    fi
+    
+    # Obtener información del cluster
+    PROJECT_ID=$(jq -r '.project_id.value // .cluster_id.value' outputs.json | cut -d'/' -f4)
+    REGION=$(jq -r '.cluster_region.value // .region.value' outputs.json)
+    
+    # Configurar kubectl para GKE
     gcloud container clusters get-credentials "$CLUSTER_NAME" \
         --region "$REGION" \
         --project "$PROJECT_ID" || {
         log_error "No se pudo configurar kubectl para GKE"
+        log_info "Verificar que gcloud esté instalado y autenticado"
         exit 1
     }
+else
+    log_error "Provider no soportado: $PROVIDER"
+    log_info "Providers soportados: doks, gke"
+    exit 1
 fi
 
 log_success "kubectl configurado"
