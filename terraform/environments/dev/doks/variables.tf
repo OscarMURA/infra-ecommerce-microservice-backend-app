@@ -29,7 +29,7 @@ variable "kubernetes_version" {
 variable "vpc_ip_range" {
   description = "Rango de IPs para la VPC"
   type        = string
-  default     = "10.10.0.0/16"
+  default     = "10.244.0.0/16"  # Rango no reservado por DigitalOcean
 }
 
 # Node Pool
