@@ -230,10 +230,10 @@ credentials_file = "${GCP_CREDENTIALS}"
                         sh 'terraform output -json > outputs.json'
                         archiveArtifacts artifacts: 'outputs.json', fingerprint: true
                         
-                        // Ejecutar script de verificación
+                        // Ejecutar script de verificación usando ruta absoluta
                         sh """
-                            chmod +x ../../../jenkins/scripts/validate-cluster.sh
-                            ../../../jenkins/scripts/validate-cluster.sh ${params.PROVIDER} ${params.ENVIRONMENT}
+                            chmod +x ${env.WORKSPACE}/jenkins/scripts/validate-cluster.sh
+                            ${env.WORKSPACE}/jenkins/scripts/validate-cluster.sh ${params.PROVIDER} ${params.ENVIRONMENT}
                         """
                     }
                 }
@@ -250,8 +250,8 @@ credentials_file = "${GCP_CREDENTIALS}"
                     sleep(time: 30, unit: 'SECONDS')
                     
                     sh """
-                        chmod +x jenkins/scripts/health-check.sh
-                        jenkins/scripts/health-check.sh ${params.PROVIDER} ${params.ENVIRONMENT}
+                        chmod +x ${env.WORKSPACE}/jenkins/scripts/health-check.sh
+                        ${env.WORKSPACE}/jenkins/scripts/health-check.sh ${params.PROVIDER} ${params.ENVIRONMENT}
                     """
                 }
             }
