@@ -40,7 +40,7 @@ variable "cluster_name" {
 variable "kubernetes_version" {
   description = "Versión de Kubernetes"
   type        = string
-  default     = "1.30.14-gke.1336000"
+  default     = "1.32.9-gke.1108000"
 }
 
 variable "release_channel" {
