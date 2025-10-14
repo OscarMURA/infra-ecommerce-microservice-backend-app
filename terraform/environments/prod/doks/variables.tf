@@ -9,7 +9,7 @@ variable "do_token" {
 variable "cluster_name" {
   description = "Nombre del cluster"
   type        = string
-  default     = "ecommerce-prod-doks"
+  default     = "ecommerce-prod-doks-v2"
 }
 
 variable "region" {
@@ -21,26 +21,26 @@ variable "region" {
 variable "kubernetes_version" {
   description = "Versión de Kubernetes"
   type        = string
-  default     = "1.28.2-do.0"
+  default     = "1.32.5-do.4"
 }
 
 variable "vpc_ip_range" {
   description = "Rango de IPs para la VPC"
   type        = string
-  default     = "10.20.0.0/16"
+  default     = "10.140.0.0/16"
 }
 
 # Node Pool - Configuración más robusta para producción
 variable "node_size" {
   description = "Tamaño de los nodos"
   type        = string
-  default     = "s-4vcpu-8gb"
+  default     = "s-2vcpu-4gb"
 }
 
 variable "node_count" {
   description = "Número de nodos"
   type        = number
-  default     = 3
+  default     = 2
 }
 
 variable "enable_auto_scaling" {
@@ -52,13 +52,13 @@ variable "enable_auto_scaling" {
 variable "min_nodes" {
   description = "Número mínimo de nodos"
   type        = number
-  default     = 3
+  default     = 2
 }
 
 variable "max_nodes" {
   description = "Número máximo de nodos"
   type        = number
-  default     = 6
+  default     = 2
 }
 
 variable "tags" {
