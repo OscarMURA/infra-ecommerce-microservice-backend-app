@@ -64,12 +64,32 @@ fi
 
 log_success "kubectl configurado"
 
-# Verificar conectividad
+# Verificar conectividad con reintentos
 log_info "Verificando conectividad con el cluster..."
-if kubectl cluster-info &>/dev/null; then
+MAX_RETRIES=5
+RETRY_COUNT=0
+CONNECTED=false
+
+while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+    if kubectl cluster-info 2>/dev/null | head -1; then
+        CONNECTED=true
+        break
+    fi
+    RETRY_COUNT=$((RETRY_COUNT + 1))
+    if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
+        log_info "Intento $RETRY_COUNT de $MAX_RETRIES falló. Reintentando en 5 segundos..."
+        sleep 5
+    fi
+done
+
+if [ "$CONNECTED" = true ]; then
     log_success "Conectividad OK"
 else
-    log_error "No se pudo conectar al cluster"
+    log_error "No se pudo conectar al cluster después de $MAX_RETRIES intentos"
+    log_info "Verificando configuración de kubectl..."
+    kubectl config view
+    log_info "Contexto actual:"
+    kubectl config current-context
     exit 1
 fi
 
