@@ -32,13 +32,13 @@ variable "regional" {
 variable "cluster_name" {
   description = "Nombre del cluster"
   type        = string
-  default     = "ecommerce-staging-gke"
+  default     = "ecommerce-staging-gke-v2"
 }
 
 variable "kubernetes_version" {
   description = "Versión de Kubernetes"
   type        = string
-  default     = "1.28"
+  default     = "1.30"
 }
 
 variable "release_channel" {
