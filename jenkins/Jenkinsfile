@@ -95,6 +95,17 @@ credentials_file = "${GCP_CREDENTIALS}"
             steps {
                 script {
                     dir("${env.WORK_DIR}") {
+                        // Restaurar estado previo si existe
+                        sh """
+                            if [ -f /var/lib/jenkins/terraform-states/${params.ENVIRONMENT}/${params.PROVIDER}/terraform.tfstate ]; then
+                                echo "📦 Restaurando estado previo de Terraform..."
+                                cp /var/lib/jenkins/terraform-states/${params.ENVIRONMENT}/${params.PROVIDER}/terraform.tfstate . || true
+                                cp /var/lib/jenkins/terraform-states/${params.ENVIRONMENT}/${params.PROVIDER}/.terraform.lock.hcl . 2>/dev/null || true
+                            else
+                                echo "ℹ️  No hay estado previo, comenzando desde cero"
+                            fi
+                        """
+                        
                         sh """
                             echo "📁 Directorio actual:"
                             pwd
@@ -273,6 +284,15 @@ credentials_file = "${GCP_CREDENTIALS}"
             }
         }
         always {
+            // Limpiar workspace pero PRESERVAR el estado de Terraform
+            dir("${env.WORK_DIR}") {
+                // Guardar el estado de Terraform antes de limpiar
+                sh """
+                    mkdir -p /var/lib/jenkins/terraform-states/${params.ENVIRONMENT}/${params.PROVIDER} || true
+                    cp -f terraform.tfstate /var/lib/jenkins/terraform-states/${params.ENVIRONMENT}/${params.PROVIDER}/ 2>/dev/null || true
+                    cp -f .terraform.lock.hcl /var/lib/jenkins/terraform-states/${params.ENVIRONMENT}/${params.PROVIDER}/ 2>/dev/null || true
+                """
+            }
             cleanWs()
         }
     }
