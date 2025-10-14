@@ -230,11 +230,14 @@ credentials_file = "${GCP_CREDENTIALS}"
                         sh 'terraform output -json > outputs.json'
                         archiveArtifacts artifacts: 'outputs.json', fingerprint: true
                         
-                        // Ejecutar script de verificación usando ruta absoluta
-                        sh """
-                            chmod +x ${env.WORKSPACE}/jenkins/scripts/validate-cluster.sh
-                            ${env.WORKSPACE}/jenkins/scripts/validate-cluster.sh ${params.PROVIDER} ${params.ENVIRONMENT}
-                        """
+                        // Ejecutar script de verificación usando ruta absoluta con credenciales
+                        withCredentials([string(credentialsId: 'digitalocean-token', variable: 'DIGITALOCEAN_TOKEN')]) {
+                            sh """
+                                chmod +x ${env.WORKSPACE}/jenkins/scripts/validate-cluster.sh
+                                export DIGITALOCEAN_TOKEN=\${DIGITALOCEAN_TOKEN}
+                                ${env.WORKSPACE}/jenkins/scripts/validate-cluster.sh ${params.PROVIDER} ${params.ENVIRONMENT}
+                            """
+                        }
                     }
                 }
             }
@@ -249,10 +252,13 @@ credentials_file = "${GCP_CREDENTIALS}"
                     // Esperar un poco para que el cluster esté listo
                     sleep(time: 30, unit: 'SECONDS')
                     
-                    sh """
-                        chmod +x ${env.WORKSPACE}/jenkins/scripts/health-check.sh
-                        ${env.WORKSPACE}/jenkins/scripts/health-check.sh ${params.PROVIDER} ${params.ENVIRONMENT}
-                    """
+                    withCredentials([string(credentialsId: 'digitalocean-token', variable: 'DIGITALOCEAN_TOKEN')]) {
+                        sh """
+                            chmod +x ${env.WORKSPACE}/jenkins/scripts/health-check.sh
+                            export DIGITALOCEAN_TOKEN=\${DIGITALOCEAN_TOKEN}
+                            ${env.WORKSPACE}/jenkins/scripts/health-check.sh ${params.PROVIDER} ${params.ENVIRONMENT}
+                        """
+                    }
                 }
             }
         }

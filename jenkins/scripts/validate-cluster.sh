@@ -38,6 +38,12 @@ log_info "Cluster: $CLUSTER_NAME"
 # Configurar kubectl según el provider
 if [ "$PROVIDER" == "doks" ]; then
     log_info "Configurando kubectl para DOKS..."
+    
+    # Autenticar doctl si tenemos el token
+    if [ -n "$DIGITALOCEAN_TOKEN" ]; then
+        doctl auth init --access-token "$DIGITALOCEAN_TOKEN" >/dev/null 2>&1
+    fi
+    
     doctl kubernetes cluster kubeconfig save "$CLUSTER_NAME" || {
         log_error "No se pudo configurar kubectl para DOKS"
         log_info "Verificar que doctl esté instalado y autenticado"
