@@ -11,6 +11,7 @@ echo "🏥 Ejecutando health check para ${PROVIDER} ${ENVIRONMENT}..."
 # Agregar gcloud al PATH si existe (para GKE)
 if [ -d "/opt/google-cloud-sdk/google-cloud-sdk/bin" ]; then
     export PATH="/opt/google-cloud-sdk/google-cloud-sdk/bin:$PATH"
+    export USE_GKE_GCLOUD_AUTH_PLUGIN=True
 fi
 
 # Validar provider

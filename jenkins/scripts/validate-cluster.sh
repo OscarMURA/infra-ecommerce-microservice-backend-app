@@ -55,6 +55,7 @@ elif [ "$PROVIDER" == "gke" ]; then
     # Agregar gcloud al PATH si existe
     if [ -d "/opt/google-cloud-sdk/google-cloud-sdk/bin" ]; then
         export PATH="/opt/google-cloud-sdk/google-cloud-sdk/bin:$PATH"
+        export USE_GKE_GCLOUD_AUTH_PLUGIN=True
     fi
     
     # Verificar que gcloud esté disponible
@@ -64,23 +65,47 @@ elif [ "$PROVIDER" == "gke" ]; then
         exit 1
     fi
     
-    # Autenticar gcloud si tenemos las credenciales
-    if [ -n "$GOOGLE_APPLICATION_CREDENTIALS" ]; then
-        gcloud auth activate-service-account --key-file="$GOOGLE_APPLICATION_CREDENTIALS" >/dev/null 2>&1
+    # Verificar que gke-gcloud-auth-plugin esté disponible
+    if ! command -v gke-gcloud-auth-plugin &> /dev/null; then
+        log_error "gke-gcloud-auth-plugin no está instalado"
+        log_info "Instalar con: gcloud components install gke-gcloud-auth-plugin"
+        exit 1
     fi
     
-    # Obtener información del cluster
-    PROJECT_ID=$(jq -r '.project_id.value // .cluster_id.value' outputs.json | cut -d'/' -f4)
-    REGION=$(jq -r '.cluster_region.value // .region.value' outputs.json)
+    # Obtener información del cluster desde outputs.json
+    PROJECT_ID=$(jq -r '.project_id.value // "devops-activity"' outputs.json)
+    CLUSTER_LOCATION=$(jq -r '.cluster_location.value // empty' outputs.json)
+    
+    # Validar que tengamos la ubicación del cluster
+    if [ -z "$CLUSTER_LOCATION" ]; then
+        log_error "No se pudo leer cluster_location de outputs.json"
+        log_info "Contenido de outputs.json:"
+        cat outputs.json | jq .
+        exit 1
+    fi
+    
+    log_info "Proyecto: $PROJECT_ID"
+    log_info "Ubicación: $CLUSTER_LOCATION"
+    
+    # Autenticar gcloud si tenemos las credenciales
+    if [ -n "$GOOGLE_APPLICATION_CREDENTIALS" ]; then
+        log_info "Autenticando con service account..."
+        gcloud auth activate-service-account --key-file="$GOOGLE_APPLICATION_CREDENTIALS" 2>/dev/null || true
+        gcloud config set project "$PROJECT_ID" 2>/dev/null
+    fi
     
     # Configurar kubectl para GKE
-    gcloud container clusters get-credentials "$CLUSTER_NAME" \
-        --region "$REGION" \
-        --project "$PROJECT_ID" || {
+    log_info "Obteniendo credenciales del cluster..."
+    if gcloud container clusters get-credentials "$CLUSTER_NAME" \
+        --zone "$CLUSTER_LOCATION" \
+        --project "$PROJECT_ID" 2>&1; then
+        log_success "Credenciales obtenidas exitosamente"
+    else
         log_error "No se pudo configurar kubectl para GKE"
-        log_info "Verificar que gcloud esté instalado y autenticado"
+        log_info "Verificar permisos del service account"
+        log_info "Comando: gcloud container clusters get-credentials $CLUSTER_NAME --zone=$CLUSTER_LOCATION --project=$PROJECT_ID"
         exit 1
-    }
+    fi
 else
     log_error "Provider no soportado: $PROVIDER"
     log_info "Providers soportados: doks, gke"
