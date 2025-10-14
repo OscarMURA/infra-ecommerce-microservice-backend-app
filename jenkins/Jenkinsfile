@@ -69,9 +69,9 @@ pipeline {
                     dir("${env.WORK_DIR}") {
                         if (params.PROVIDER == 'doks') {
                             withCredentials([string(credentialsId: 'digitalocean-token', variable: 'DO_TOKEN')]) {
+                                // Solo configurar el token, usar cluster_name del variables.tf
                                 writeFile file: 'terraform.tfvars', text: """
 do_token = "${DO_TOKEN}"
-cluster_name = "ecommerce-${params.ENVIRONMENT}-doks"
 """
                             }
                         } else if (params.PROVIDER == 'gke') {
@@ -79,10 +79,10 @@ cluster_name = "ecommerce-${params.ENVIRONMENT}-doks"
                                 string(credentialsId: 'gcp-project-id', variable: 'GCP_PROJECT'),
                                 file(credentialsId: 'gcp-service-account', variable: 'GCP_CREDENTIALS')
                             ]) {
+                                // Solo configurar credenciales GCP, usar cluster_name del variables.tf
                                 writeFile file: 'terraform.tfvars', text: """
 project_id = "${GCP_PROJECT}"
 credentials_file = "${GCP_CREDENTIALS}"
-cluster_name = "ecommerce-${params.ENVIRONMENT}-gke"
 """
                             }
                         }
