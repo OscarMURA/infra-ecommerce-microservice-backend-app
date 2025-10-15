@@ -1,0 +1,18 @@
+subscription_id = "YOUR_SUBSCRIPTION_ID"
+tenant_id       = "YOUR_TENANT_ID"
+
+cluster_name        = "ecommerce-aks-staging"
+resource_group_name = "ecommerce-rg-staging"
+location            = "eastus"
+dns_prefix          = "ecommerce-staging"
+
+node_size  = "Standard_D4s_v3"
+node_count = 3
+min_nodes  = 2
+max_nodes  = 5
+
+tags = {
+  project     = "ecommerce"
+  environment = "staging"
+  managed-by  = "terraform"
+}
