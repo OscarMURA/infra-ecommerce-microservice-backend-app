@@ -15,9 +15,9 @@ if [ -d "/opt/google-cloud-sdk/google-cloud-sdk/bin" ]; then
 fi
 
 # Validar provider
-if [ "$PROVIDER" != "doks" ] && [ "$PROVIDER" != "gke" ]; then
+if [ "$PROVIDER" != "doks" ] && [ "$PROVIDER" != "gke" ] && [ "$PROVIDER" != "aks" ]; then
     echo "❌ Provider no soportado: $PROVIDER"
-    echo "ℹ Providers soportados: doks, gke"
+    echo "ℹ Providers soportados: doks, gke, aks"
     exit 1
 fi
 

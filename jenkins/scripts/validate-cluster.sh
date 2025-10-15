@@ -106,9 +106,52 @@ elif [ "$PROVIDER" == "gke" ]; then
         log_info "Comando: gcloud container clusters get-credentials $CLUSTER_NAME --zone=$CLUSTER_LOCATION --project=$PROJECT_ID"
         exit 1
     fi
+elif [ "$PROVIDER" == "aks" ]; then
+    log_info "Configurando kubectl para AKS..."
+    
+    # Verificar que az CLI esté disponible
+    if ! command -v az &> /dev/null; then
+        log_error "Azure CLI (az) no está instalado"
+        log_info "Instalar con: curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash"
+        exit 1
+    fi
+    
+    # Verificar autenticación de Azure
+    if ! az account show &> /dev/null; then
+        log_error "Azure CLI no está autenticado"
+        log_info "Autenticar con: az login"
+        exit 1
+    fi
+    
+    # Obtener información del cluster desde outputs.json
+    RESOURCE_GROUP=$(jq -r '.resource_group_name.value // empty' outputs.json)
+    
+    # Validar que tengamos el resource group
+    if [ -z "$RESOURCE_GROUP" ]; then
+        log_error "No se pudo leer resource_group_name de outputs.json"
+        log_info "Contenido de outputs.json:"
+        cat outputs.json | jq .
+        exit 1
+    fi
+    
+    log_info "Resource Group: $RESOURCE_GROUP"
+    
+    # Configurar kubectl para AKS
+    log_info "Obteniendo credenciales del cluster..."
+    if az aks get-credentials \
+        --resource-group "$RESOURCE_GROUP" \
+        --name "$CLUSTER_NAME" \
+        --overwrite-existing 2>&1; then
+        log_success "Credenciales obtenidas exitosamente"
+    else
+        log_error "No se pudo configurar kubectl para AKS"
+        log_info "Verificar permisos y que el cluster exista"
+        log_info "Comando: az aks get-credentials --resource-group $RESOURCE_GROUP --name $CLUSTER_NAME"
+        exit 1
+    fi
 else
     log_error "Provider no soportado: $PROVIDER"
-    log_info "Providers soportados: doks, gke"
+    log_info "Providers soportados: doks, gke, aks"
     exit 1
 fi
 
