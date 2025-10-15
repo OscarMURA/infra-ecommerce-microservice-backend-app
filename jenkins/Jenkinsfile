@@ -1,5 +1,5 @@
 // Jenkins Pipeline para Infraestructura Kubernetes
-// Soporta DOKS y GKE
+// Soporta DOKS, GKE y AKS
 
 pipeline {
     agent any
@@ -7,7 +7,7 @@ pipeline {
     parameters {
         choice(
             name: 'PROVIDER',
-            choices: ['doks', 'gke'],
+            choices: ['doks', 'gke', 'aks'],
             description: 'Proveedor de Kubernetes'
         )
         choice(
@@ -88,6 +88,27 @@ do_token = "${DO_TOKEN}"
 project_id = "${GCP_PROJECT}"
 credentials_file = "gcp-credentials.json"
 """
+                            }
+                        } else if (params.PROVIDER == 'aks') {
+                            withCredentials([
+                                string(credentialsId: 'azure-subscription-id', variable: 'AZURE_SUBSCRIPTION_ID'),
+                                string(credentialsId: 'azure-tenant-id', variable: 'AZURE_TENANT_ID')
+                            ]) {
+                                // Azure usa la autenticación del Azure CLI ya configurada
+                                // Solo necesitamos pasar subscription_id y tenant_id
+                                writeFile file: 'terraform.tfvars', text: """
+subscription_id = "${AZURE_SUBSCRIPTION_ID}"
+tenant_id = "${AZURE_TENANT_ID}"
+"""
+                                // Verificar autenticación de Azure
+                                sh """
+                                    echo "🔐 Verificando autenticación de Azure..."
+                                    az account show || {
+                                        echo "❌ Error: Azure CLI no está autenticado"
+                                        exit 1
+                                    }
+                                    echo "✅ Azure CLI autenticado correctamente"
+                                """
                             }
                         }
                     }
@@ -253,6 +274,11 @@ credentials_file = "gcp-credentials.json"
                                     ${env.WORKSPACE}/jenkins/scripts/validate-cluster.sh ${params.PROVIDER} ${params.ENVIRONMENT}
                                 """
                             }
+                        } else if (params.PROVIDER == 'aks') {
+                            sh """
+                                chmod +x ${env.WORKSPACE}/jenkins/scripts/validate-cluster.sh
+                                ${env.WORKSPACE}/jenkins/scripts/validate-cluster.sh ${params.PROVIDER} ${params.ENVIRONMENT}
+                            """
                         }
                     }
                 }
@@ -287,6 +313,11 @@ credentials_file = "gcp-credentials.json"
                                 ${env.WORKSPACE}/jenkins/scripts/health-check.sh ${params.PROVIDER} ${params.ENVIRONMENT}
                             """
                         }
+                    } else if (params.PROVIDER == 'aks') {
+                        sh """
+                            chmod +x ${env.WORKSPACE}/jenkins/scripts/health-check.sh
+                            ${env.WORKSPACE}/jenkins/scripts/health-check.sh ${params.PROVIDER} ${params.ENVIRONMENT}
+                        """
                     }
                 }
             }
