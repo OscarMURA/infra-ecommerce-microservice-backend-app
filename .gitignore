@@ -49,6 +49,10 @@ gcp-*.json
 # Terraform outputs
 outputs.json
 
+# Azure credentials and sensitive files
+AZURE_CREDENTIALS.md
+*_CREDENTIALS.md
+
 # OS files
 .DS_Store
 Thumbs.db

@@ -1,33 +1,61 @@
 # Infrastructure as Code - E-commerce Microservices
 
-Este proyecto contiene la infraestructura como código (IaC) para desplegar el backend de microservicios de e-commerce en Kubernetes.
+Este proyecto contiene la infraestructura como código (IaC) para desplegar el backend de microservicios de e-commerce en Kubernetes usando múltiples proveedores cloud.
 
 ## 🏗️ Estructura del Proyecto
 
 ```
 infra-ecommerce-microservice-backend-app/
 ├── terraform/           # Configuración de Terraform
-│   ├── modules/        # Módulos reutilizables
-│   ├── environments/   # Configuraciones por ambiente
+│   ├── modules/        # Módulos reutilizables (doks, gke, aks)
+│   ├── environments/   # Configuraciones por ambiente (dev, staging, prod)
 │   └── scripts/        # Scripts de automatización
 ├── jenkins/            # Pipelines de CI/CD
+│   ├── Jenkinsfile    # Pipeline principal
+│   └── scripts/       # Scripts de validación
 ├── kubernetes/         # Manifiestos de Kubernetes
-└── docs/              # Documentación
+└── docs/              # Documentación detallada
 ```
 
 ## 🚀 Proveedores Soportados
 
-- **DOKS** (DigitalOcean Kubernetes Service)
-- **GKE** (Google Kubernetes Engine)
+| Proveedor | Servicio | Estado |
+|-----------|----------|--------|
+| **DigitalOcean** | DOKS | ✅ Activo |
+| **Google Cloud** | GKE | ✅ Activo |
+| **Azure** | AKS | ✅ **NUEVO!** |
 
 ## 📋 Prerequisitos
 
 - Terraform >= 1.5.0
 - kubectl >= 1.27
 - Jenkins >= 2.4
-- Credenciales configuradas para:
-  - DigitalOcean (Token)
-  - Google Cloud (Service Account)
+- Credenciales configuradas para al menos uno de:
+  - **DigitalOcean**: Token de API
+  - **Google Cloud**: Service Account JSON
+  - **Azure**: Subscription ID y Tenant ID (az CLI configurado)
+
+## 🎯 Inicio Rápido
+
+### Para Azure (Nuevo!)
+
+Si ya tienes Azure CLI configurado localmente, sigue esta guía:
+
+```bash
+# Ver guía rápida de Azure
+cat AZURE_QUICK_START.md
+
+# O ver el checklist
+cat AZURE_CHECKLIST.md
+```
+
+**Documentación completa de Azure**: [`docs/aks-setup.md`](docs/aks-setup.md)
+
+### Para DigitalOcean o Google Cloud
+
+Consulta la documentación específica:
+- DOKS: `docs/doks-setup.md`
+- GKE: `docs/gke-setup.md`
 
 ## 🔧 Configuración Inicial
 
@@ -40,12 +68,23 @@ export DO_TOKEN="your-digitalocean-token"
 # Para GKE
 export GOOGLE_CREDENTIALS="path/to/service-account.json"
 export GOOGLE_PROJECT="your-gcp-project-id"
+
+# Para AKS
+az login
+az account show  # Verificar autenticación
 ```
 
 ### 2. Inicializar Terraform
 
 ```bash
-cd terraform/environments/dev/doks  # o gke
+# Elegir proveedor y ambiente
+cd terraform/environments/dev/aks  # o doks, o gke
+
+# Configurar variables
+cp terraform.tfvars.example terraform.tfvars
+nano terraform.tfvars  # Editar con tus valores
+
+# Inicializar y aplicar
 terraform init
 terraform plan
 terraform apply
