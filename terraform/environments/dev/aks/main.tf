@@ -84,16 +84,14 @@ module "aks_cluster" {
 }
 
 # Configuración de Kubernetes (opcional)
-module "kubernetes_config" {
-  source = "../../../modules/kubernetes-config"
-  
-  cluster_endpoint = module.aks_cluster.cluster_endpoint
-  cluster_ca_cert  = module.aks_cluster.cluster_ca_certificate
-  cluster_token    = ""
-  
-  # Usar client certificate authentication para AKS
-  client_certificate = module.aks_cluster.client_certificate
-  client_key         = module.aks_cluster.client_key
-  
-  environment = "dev"
-}
+# Se puede habilitar después de crear el cluster para configurar recursos base
+# module "kubernetes_config" {
+#   source = "../../../modules/kubernetes-config"
+#   
+#   # Este módulo solo crea namespaces y recursos básicos
+#   # No requiere configuración de credenciales del cluster
+#   namespace_name = "ecommerce"
+#   enable_monitoring = true
+#   enable_logging = true
+# }
+
