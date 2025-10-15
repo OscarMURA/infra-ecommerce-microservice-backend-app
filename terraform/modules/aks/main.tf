@@ -72,13 +72,7 @@ resource "azurerm_kubernetes_cluster" "aks" {
   }
 
   role_based_access_control_enabled = var.enable_rbac
-
-  dynamic "azure_policy_enabled" {
-    for_each = var.enable_azure_policy ? [1] : []
-    content {
-      enabled = true
-    }
-  }
+  azure_policy_enabled               = var.enable_azure_policy
 
   dynamic "oms_agent" {
     for_each = var.enable_monitoring ? [1] : []
