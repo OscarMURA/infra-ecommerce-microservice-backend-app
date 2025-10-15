@@ -1,0 +1,24 @@
+# Azure Subscription ID (obtenlo con: az account show --query id -o tsv)
+subscription_id = "YOUR_SUBSCRIPTION_ID"
+
+# Azure Tenant ID (obtenlo con: az account show --query tenantId -o tsv)
+tenant_id = "YOUR_TENANT_ID"
+
+# Cluster Configuration
+cluster_name        = "ecommerce-aks-dev"
+resource_group_name = "ecommerce-rg-dev"
+location            = "eastus"
+dns_prefix          = "ecommerce-dev"
+
+# Node Configuration (ajusta según tus necesidades)
+node_size  = "Standard_D2s_v3"
+node_count = 2
+min_nodes  = 1
+max_nodes  = 3
+
+# Tags
+tags = {
+  project     = "ecommerce"
+  environment = "dev"
+  managed-by  = "terraform"
+}
