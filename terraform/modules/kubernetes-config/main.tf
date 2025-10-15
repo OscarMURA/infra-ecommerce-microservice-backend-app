@@ -1,19 +1,6 @@
 # Kubernetes Configuration Module
 # Este módulo configura recursos base en el cluster de Kubernetes
 
-terraform {
-  required_providers {
-    kubernetes = {
-      source  = "hashicorp/kubernetes"
-      version = "~> 2.23"
-    }
-    helm = {
-      source  = "hashicorp/helm"
-      version = "~> 2.11"
-    }
-  }
-}
-
 # Namespace para la aplicación de e-commerce
 resource "kubernetes_namespace" "ecommerce" {
   metadata {
