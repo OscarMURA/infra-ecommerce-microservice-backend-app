@@ -39,7 +39,7 @@ variable "dns_prefix" {
 variable "kubernetes_version" {
   description = "Versión de Kubernetes"
   type        = string
-  default     = "1.28"
+  default     = "1.31.11"
 }
 
 # Network Configuration
