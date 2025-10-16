@@ -291,8 +291,10 @@ tenant_id = "${AZURE_TENANT_ID}"
             }
             steps {
                 script {
-                    // Esperar un poco para que el cluster esté listo
-                    sleep(time: 30, unit: 'SECONDS')
+                    // Esperar más tiempo para AKS que necesita inicializar nodos
+                    def waitTime = params.PROVIDER == 'aks' ? 90 : 30
+                    echo "⏰ Esperando ${waitTime} segundos para que el cluster termine de inicializar..."
+                    sleep(time: waitTime, unit: 'SECONDS')
                     
                     // Ejecutar health check según el provider
                     if (params.PROVIDER == 'doks') {

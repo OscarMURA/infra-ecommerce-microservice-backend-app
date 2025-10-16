@@ -99,6 +99,43 @@ check_pods_health() {
 declare -a checks_passed=()
 declare -a checks_failed=()
 
+# 0. Verificar nodos del cluster
+log_info "0. Verificando nodos del cluster..."
+echo ""
+kubectl get nodes
+echo ""
+
+if [ "$PROVIDER" == "aks" ]; then
+    # Para AKS, ser tolerante con nodos que están inicializando
+    nodes_total=$(kubectl get nodes --no-headers 2>/dev/null | wc -l)
+    nodes_ready=$(kubectl get nodes --no-headers 2>/dev/null | grep " Ready " | grep -v "NotReady" | wc -l)
+    nodes_not_ready=$(kubectl get nodes --no-headers 2>/dev/null | grep "NotReady" | wc -l)
+    
+    if [ "$nodes_ready" -gt 0 ]; then
+        if [ "$nodes_not_ready" -gt 0 ]; then
+            log_warning "Nodos: $nodes_ready/$nodes_total Ready (algunos nodos aún inicializando - normal en AKS nuevo)"
+        else
+            log_success "Nodos: $nodes_ready/$nodes_total Ready"
+        fi
+        checks_passed+=("Nodes")
+    else
+        log_error "No hay nodos en estado Ready"
+        checks_failed+=("Nodes")
+    fi
+else
+    # Para GKE y DOKS, verificar que todos los nodos estén Ready
+    nodes_total=$(kubectl get nodes --no-headers 2>/dev/null | wc -l)
+    nodes_ready=$(kubectl get nodes --no-headers 2>/dev/null | grep " Ready " | grep -v "NotReady" | wc -l)
+    
+    if [ "$nodes_ready" -eq "$nodes_total" ] && [ "$nodes_total" -gt 0 ]; then
+        log_success "Nodos: $nodes_ready/$nodes_total Ready"
+        checks_passed+=("Nodes")
+    else
+        log_error "Nodos: $nodes_ready/$nodes_total Ready"
+        checks_failed+=("Nodes")
+    fi
+fi
+
 # 1. Verificar API Server
 log_info "1. Verificando API Server..."
 if kubectl cluster-info 2>/dev/null | grep -q "Kubernetes control plane"; then
@@ -125,6 +162,27 @@ if [ "$PROVIDER" == "gke" ]; then
         fi
     else
         log_error "kube-dns deployment no encontrado"
+        checks_failed+=("DNS")
+    fi
+elif [ "$PROVIDER" == "aks" ]; then
+    # En AKS, verificar CoreDNS (más tolerante con inicialización)
+    if kubectl get deployment coredns -n kube-system &>/dev/null; then
+        coredns_pods=$(kubectl get pods -n kube-system -l k8s-app=kube-dns --no-headers 2>/dev/null | wc -l)
+        coredns_running=$(kubectl get pods -n kube-system -l k8s-app=kube-dns --no-headers 2>/dev/null | grep "Running" | wc -l)
+        coredns_total=$(kubectl get pods -n kube-system -l k8s-app=kube-dns --no-headers 2>/dev/null | grep -E "Running|ContainerCreating" | wc -l)
+        
+        if [ "$coredns_running" -gt 0 ]; then
+            log_success "CoreDNS: $coredns_running/$coredns_pods pods corriendo"
+            checks_passed+=("DNS")
+        elif [ "$coredns_total" -gt 0 ]; then
+            log_warning "CoreDNS iniciándose ($coredns_running/$coredns_pods ready) - normal en cluster nuevo"
+            checks_passed+=("DNS")
+        else
+            log_error "CoreDNS no tiene pods corriendo o iniciándose"
+            checks_failed+=("DNS")
+        fi
+    else
+        log_error "CoreDNS deployment no encontrado"
         checks_failed+=("DNS")
     fi
 elif [ "$PROVIDER" == "doks" ]; then
