@@ -63,6 +63,83 @@ pipeline {
             }
         }
         
+        stage('Cluster Status Overview') {
+            steps {
+                script {
+                    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+                    echo "           ☸️  CLUSTER STATUS OVERVIEW              "
+                    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+                    
+                    def providers = ['doks', 'gke', 'aks']
+                    def environments = ['dev', 'staging']
+                    def runningClusters = []
+                    def stoppedClusters = []
+                    def notDeployedClusters = []
+                    
+                    providers.each { provider ->
+                        environments.each { env ->
+                            def stateFile = "/var/lib/jenkins/terraform-states/${env}/${provider}/terraform.tfstate"
+                            def providerIcon = provider == 'doks' ? '🌊' : provider == 'gke' ? '☁️' : '⚡'
+                            def clusterName = "${providerIcon} ${provider.toUpperCase()} ${env}"
+                            
+                            def status = sh(
+                                script: """
+                                    if [ ! -f "${stateFile}" ]; then
+                                        echo "NOT_DEPLOYED"
+                                    else
+                                        resource_count=\$(cat "${stateFile}" | grep -c '"type"' || echo "0")
+                                        if [ "\$resource_count" -gt 0 ]; then
+                                            echo "DEPLOYED"
+                                        else
+                                            echo "EMPTY_STATE"
+                                        fi
+                                    fi
+                                """,
+                                returnStdout: true
+                            ).trim()
+                            
+                            if (status == "DEPLOYED") {
+                                runningClusters.add(clusterName)
+                            } else if (status == "EMPTY_STATE") {
+                                stoppedClusters.add(clusterName)
+                            } else {
+                                notDeployedClusters.add(clusterName)
+                            }
+                        }
+                    }
+                    
+                    // Show running clusters
+                    if (runningClusters.size() > 0) {
+                        echo "\n🟢 RUNNING CLUSTERS (${runningClusters.size()}):"
+                        runningClusters.each { cluster ->
+                            echo "   ✓ ${cluster}"
+                        }
+                    }
+                    
+                    // Show stopped/error clusters
+                    if (stoppedClusters.size() > 0) {
+                        echo "\n🔴 STOPPED/ERROR CLUSTERS (${stoppedClusters.size()}):"
+                        stoppedClusters.each { cluster ->
+                            echo "   ✗ ${cluster} (EMPTY_STATE)"
+                        }
+                    }
+                    
+                    // Show not deployed clusters
+                    if (notDeployedClusters.size() > 0) {
+                        echo "\n⚫ NOT DEPLOYED (${notDeployedClusters.size()}):"
+                        notDeployedClusters.each { cluster ->
+                            echo "   - ${cluster}"
+                        }
+                    }
+                    
+                    echo "\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+                    echo "📊 Summary: ${runningClusters.size()} Running | ${stoppedClusters.size()} Error | ${notDeployedClusters.size()} Not Deployed"
+                    echo "🎯 Target: ${params.PROVIDER.toUpperCase()} ${params.ENVIRONMENT} → ${params.ACTION.toUpperCase()}"
+                    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                }
+            }
+        }
+        
         stage('Setup Credentials') {
             steps {
                 script {
