@@ -1,0 +1,60 @@
+#cloud-config
+hostname: ecommerce-integration-vm
+manage_etc_hosts: true
+ssh_pwauth: true
+
+users:
+  - name: jenkins
+    gecos: Jenkins CI Runner
+    groups: sudo
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    shell: /bin/bash
+
+chpasswd:
+  list: |
+    jenkins:__VM_PASSWORD__
+  expire: false
+
+package_update: true
+packages:
+  - ca-certificates
+  - curl
+  - gnupg
+  - ufw
+  - jq
+  - git
+  - build-essential
+  - python3
+  - python3-pip
+
+write_files:
+  - path: /etc/motd
+    permissions: '0644'
+    owner: root:root
+    content: |
+      Bienvenido a la VM de integración de ecommerce.
+      Este host fue aprovisionado automáticamente por Jenkins para ejecutar pruebas.
+
+runcmd:
+  - sed -i 's/^#\?PasswordAuthentication.*/PasswordAuthentication yes/' /etc/ssh/sshd_config
+  - systemctl reload ssh || systemctl restart ssh
+
+  - install -m 0755 -d /etc/apt/keyrings
+  - curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+  - chmod a+r /etc/apt/keyrings/docker.gpg
+  - bash -lc 'echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu jammy stable" > /etc/apt/sources.list.d/docker.list'
+
+  - apt-get update
+  - apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+  - usermod -aG docker jenkins || true
+
+  - ufw allow 22/tcp
+  - ufw allow 3000,8000,8080,8081,8082,8083,9411/tcp
+  - ufw --force enable
+
+  - mkdir -p /opt/ecommerce-app
+  - chown -R jenkins:jenkins /opt/ecommerce-app
+
+  - bash -lc 'pip3 install --upgrade pip'
+
+final_message: "Cloud-init finished. Host is ready for ecommerce integration jobs."

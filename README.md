@@ -115,6 +115,26 @@ Para ejecutar el pipeline:
 2. Configura las credenciales necesarias
 3. Ejecuta el pipeline seleccionando el proveedor (DOKS/GKE)
 
+### Jenkins_Create_VM (DigitalOcean)
+
+Se añadió el pipeline `jenkins/Jenkins_Create_VM.groovy` para aprovisionar una VM temporal en DigitalOcean destinada a pruebas de integración desde Jenkins.
+
+**Requisitos del agente Jenkins**
+- `curl` y `jq` disponibles en el PATH (usados para invocar la API de DigitalOcean).
+- Permisos de salida a `https://api.digitalocean.com`.
+
+**Credenciales necesarias**
+- `digitalocean-token` (Secret Text): token personal de DigitalOcean con permisos de lectura/escritura para droplets.
+- `integration-vm-password` (Secret Text): contraseña fuerte que se aplicará al usuario `jenkins` dentro de la VM.
+
+**Acciones soportadas**
+- `create`: crea la VM si no existe.
+- `rebuild`: destruye y crea de nuevo la VM con la misma configuración.
+- `destroy`: elimina la VM (idempotente).
+- `status`: consulta la IP pública sin modificar recursos.
+
+El pipeline publica los archivos `droplet.properties` y `jenkins-env.properties` con la IP y metadatos para reutilización en etapas posteriores (por ejemplo, jobs de pruebas).
+
 ## 📚 Documentación
 
 - [Configuración DOKS](docs/doks-setup.md)
