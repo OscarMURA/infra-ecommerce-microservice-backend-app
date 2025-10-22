@@ -10,7 +10,7 @@ Scripts and cloud-init configuration to provision a disposable DigitalOcean drop
 
 ## Files
 
-- `cloud-init.yaml`: cloud-init template executed on first boot. Installs Docker Engine, Compose plugin, Python 3 and other utilities. It creates the `jenkins` user with sudo access and password authentication enabled.
+- `cloud-init.yaml`: cloud-init template executed on first boot. Installs Docker Engine, Compose plugin, OpenJDK 17, Python 3 and other utilities. It creates the `jenkins` user with sudo access and password authentication enabled.
 - `create-do-droplet.sh`: helper to create a droplet using the template above.
 - `delete-do-droplet.sh`: helper to destroy a droplet either by name or droplet ID.
 
