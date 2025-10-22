@@ -137,8 +137,7 @@ SIZE=${params.VM_SIZE}
 IMAGE=${params.VM_IMAGE}
 """
 
-            def userCause = currentBuild.rawBuild?.getCause(hudson.model.Cause$UserIdCause)
-            def triggeredBy = userCause?.userName ?: 'jenkins'
+            def triggeredBy = env.BUILD_USER_ID ?: env.BUILD_USER ?: env.BUILD_TAG ?: 'jenkins'
 
             writeFile file: env.JENKINS_ENV_FILE, text: """VM_NAME=${params.VM_NAME}
 DROPLET_IP=${env.DROPLET_IP ?: ''}
