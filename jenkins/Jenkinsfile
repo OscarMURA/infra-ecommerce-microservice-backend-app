@@ -37,7 +37,6 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
-                checkout scm
                 script {
                     // Emoji según el ambiente
                     def envEmoji = params.ENVIRONMENT == 'dev' ? '🔧' : 
@@ -49,6 +48,10 @@ pipeline {
                     echo "Action: ${params.ACTION}"
                     echo "Workspace: ${env.WORKSPACE}"
                     echo "Working Dir: ${env.WORK_DIR}"
+                    echo "Branch: ${env.BRANCH_NAME ?: env.GIT_BRANCH ?: 'main'}"
+                    
+                    // Checkout con soporte para multibranch
+                    checkout scm
                     
                     // Verificar estructura del workspace
                     sh """
