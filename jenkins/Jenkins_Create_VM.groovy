@@ -9,6 +9,7 @@ pipeline {
     string(name: 'VM_SIZE', defaultValue: 's-1vcpu-2gb', description: 'Plan/tamaño de la VM')
     string(name: 'VM_IMAGE', defaultValue: 'ubuntu-22-04-x64', description: 'Imagen base a utilizar')
     booleanParam(name: 'ARCHIVE_METADATA', defaultValue: true, description: 'Publicar droplet.properties y jenkins-env.properties como artefactos')
+    booleanParam(name: 'CONFIGURE_GCP_ACCESS', defaultValue: true, description: 'Copiar credenciales de GCP y dejar listo gcloud en la VM (solo create/rebuild)')
   }
 
   environment {
@@ -152,6 +153,68 @@ TIMESTAMP=${new Date().format('yyyy-MM-dd HH:mm:ss')}
             if (params.ARCHIVE_METADATA) {
               archiveArtifacts artifacts: "${env.PROPERTIES_FILE},${env.JENKINS_ENV_FILE}", fingerprint: true
             }
+          }
+        }
+      }
+    }
+
+    stage('Configure GCP Access') {
+      when {
+        expression {
+          params.CONFIGURE_GCP_ACCESS &&
+            env.DROPLET_IP &&
+            (params.ACTION == 'create' || params.ACTION == 'rebuild')
+        }
+      }
+      steps {
+        withCredentials([
+          string(credentialsId: 'integration-vm-password', variable: 'VM_PASSWORD'),
+          string(credentialsId: 'gcp-project-id', variable: 'GCP_PROJECT_ID'),
+          file(credentialsId: 'gcp-service-account', variable: 'GOOGLE_APPLICATION_CREDENTIALS')
+        ]) {
+          script {
+            def targetIp = env.DROPLET_IP
+            if (!targetIp) {
+              error "❌ No hay IP disponible para configurar gcloud en la VM."
+            }
+
+            echo "🔐 Configurando acceso a GCP en ${targetIp}..."
+
+            sh """
+set -e
+export SSHPASS="\$VM_PASSWORD"
+
+echo "⏳ Esperando a que la VM acepte conexiones SSH..."
+READY=0
+for i in \$(seq 1 30); do
+  if sshpass -e ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null jenkins@${targetIp} "echo VM ready" >/dev/null 2>&1; then
+    READY=1
+    break
+  fi
+  echo "   reintentando (\$i/30)..."
+  sleep 10
+done
+if [ "\$READY" -ne 1 ]; then
+  echo "❌ No fue posible establecer conexión SSH con ${targetIp}"
+  exit 1
+fi
+
+sshpass -e ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null jenkins@${targetIp} "mkdir -p ~/.config/gcloud && chmod 700 ~/.config/gcloud"
+
+TMP_REMOTE_CRED="/home/jenkins/.config/gcloud/service-account.json"
+sshpass -e scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "\$GOOGLE_APPLICATION_CREDENTIALS" jenkins@${targetIp}:"\$TMP_REMOTE_CRED"
+sshpass -e ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null jenkins@${targetIp} "chmod 600 \$TMP_REMOTE_CRED"
+
+sshpass -e ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null jenkins@${targetIp} "
+  set -e
+  export CLOUDSDK_CORE_DISABLE_PROMPTS=1
+  gcloud auth activate-service-account --key-file=\$TMP_REMOTE_CRED
+  gcloud config set project '$GCP_PROJECT_ID'
+  gcloud auth configure-docker us-docker.pkg.dev --quiet || true
+  gcloud auth configure-docker gcr.io --quiet || true
+  echo '✅ gcloud configurado para el proyecto $GCP_PROJECT_ID'
+"
+"""
           }
         }
       }
