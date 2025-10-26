@@ -19,17 +19,23 @@ data:
   # Zipkin Configuration
   SPRING_ZIPKIN_BASE_URL: "http://zipkin:9411"
   
-  # Config Server
-  SPRING_CONFIG_IMPORT: "optional:configserver:http://cloud-config:9296/"
+  # Disable Cloud Config (using embedded configuration)
+  SPRING_CLOUD_CONFIG_ENABLED: "false"
   
   # Logging
   LOGGING_LEVEL_ROOT: "INFO"
   LOGGING_LEVEL_COM_ECOMMERCE: "DEBUG"
   
-  # Database Configuration (valores por defecto)
-  SPRING_DATASOURCE_DRIVER_CLASS_NAME: "org.postgresql.Driver"
-  SPRING_JPA_HIBERNATE_DDL_AUTO: "update"
-  SPRING_JPA_SHOW_SQL: "false"
+  # Database Configuration (H2 para desarrollo/testing)
+  SPRING_DATASOURCE_DRIVER_CLASS_NAME: "org.h2.Driver"
+  SPRING_DATASOURCE_URL: "jdbc:h2:mem:ecommerce_dev_db;DB_CLOSE_ON_EXIT=FALSE"
+  SPRING_DATASOURCE_USERNAME: "sa"
+  SPRING_DATASOURCE_PASSWORD: ""
+  SPRING_JPA_HIBERNATE_DDL_AUTO: "validate"
+  SPRING_JPA_SHOW_SQL: "true"
+  SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT: "org.hibernate.dialect.H2Dialect"
+  SPRING_H2_CONSOLE_ENABLED: "true"
+  SPRING_H2_CONSOLE_PATH: "/h2-console"
   
   # Application Configuration
   SERVER_COMPRESSION_ENABLED: "true"
