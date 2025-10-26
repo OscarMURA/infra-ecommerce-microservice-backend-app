@@ -21,14 +21,14 @@ enable_private_nodes    = true
 enable_private_endpoint = false
 master_ipv4_cidr_block  = "172.16.0.0/28"
 
-# Node Pool
-machine_type   = "e2-medium"
+# Node Pool - Optimizado para despliegues más rápidos
+machine_type   = "e2-standard-4"  # 4 vCPU, 16GB RAM (vs e2-medium: 2 vCPU, 4GB RAM)
 disk_size_gb   = 50
-disk_type      = "pd-balanced"
+disk_type      = "pd-ssd"        # SSD más rápido que pd-balanced
 image_type     = "COS_CONTAINERD"
-node_count     = 2
-min_node_count = 1
-max_node_count = 3
+node_count     = 3               # Más nodos para mejor distribución
+min_node_count = 2
+max_node_count = 5
 auto_repair    = true
 auto_upgrade   = true
 
