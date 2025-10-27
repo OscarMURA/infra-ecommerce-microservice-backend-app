@@ -32,13 +32,13 @@ echo "📦 Paso 1: Verificando Docker..."
 if ! command -v docker &> /dev/null; then
   echo "⚠️  Docker no está instalado, instalando..."
   
-  # Esperar a que cloud-init termine
-  echo "⏳ Esperando a que cloud-init termine..."
-  while sudo fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1 || sudo fuser /var/lib/apt/lists/lock >/dev/null 2>&1 || sudo fuser /var/lib/dpkg/lock >/dev/null 2>&1; do
+  # Esperar a que cloud-init termine completamente
+  echo "⏳ Esperando a que cloud-init termine completamente..."
+  while sudo fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1 || sudo fuser /var/lib/apt/lists/lock >/dev/null 2>&1 || sudo fuser /var/lib/dpkg/lock >/dev/null 2>&1 || pgrep -f "apt-get\|dpkg" >/dev/null 2>&1; do
     echo "   cloud-init aún ejecutándose, esperando..."
     sleep 10
   done
-  echo "✅ cloud-init terminado, instalando Docker..."
+  echo "✅ cloud-init terminado completamente, instalando Docker..."
   
   echo "🔽 Actualizando paquetes..."
   sudo apt-get update
