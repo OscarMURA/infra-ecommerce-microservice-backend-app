@@ -11,6 +11,42 @@
     minikube_disk_size: "20g"
 
   tasks:
+    - name: Wait for cloud-init to complete
+      shell: |
+        while [ ! -f /var/lib/cloud/instance/boot-finished ]; do
+          echo "Waiting for cloud-init to finish..."
+          sleep 10
+        done
+        echo "Cloud-init finished"
+      register: cloud_init_wait
+      until: cloud_init_wait.rc == 0
+      retries: 30
+      delay: 10
+
+    - name: Wait for apt locks to be released
+      shell: |
+        while fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1 || fuser /var/lib/apt/lists/lock >/dev/null 2>&1 || fuser /var/lib/dpkg/lock >/dev/null 2>&1; do
+          echo "Waiting for apt locks to be released..."
+          sleep 5
+        done
+        echo "Apt locks released"
+      register: apt_lock_wait
+      until: apt_lock_wait.rc == 0
+      retries: 20
+      delay: 5
+
+    - name: Check for running apt processes
+      shell: |
+        while pgrep -f "apt-get\|dpkg" >/dev/null; do
+          echo "Waiting for apt processes to finish..."
+          sleep 5
+        done
+        echo "No apt processes running"
+      register: apt_process_wait
+      until: apt_process_wait.rc == 0
+      retries: 20
+      delay: 5
+
     - name: Update apt cache
       apt:
         update_cache: yes
