@@ -24,7 +24,7 @@ for i in $(seq 1 30); do
 done
 
 # Configurar Minikube (Docker y Google Cloud SDK ya están instalados)
-echo "🚀 Instalando kubectl y Minikube..."
+echo "🚀 Instalando kubectl y Minikube (versión actualizada)..."
 sshpass -e ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null jenkins@"${VM_IP}" << 'EOF'
 set -euo pipefail
 
