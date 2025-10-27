@@ -31,6 +31,15 @@ set -euo pipefail
 echo "📦 Paso 1: Verificando Docker..."
 if ! command -v docker &> /dev/null; then
   echo "⚠️  Docker no está instalado, instalando..."
+  
+  # Esperar a que cloud-init termine
+  echo "⏳ Esperando a que cloud-init termine..."
+  while sudo fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do
+    echo "   cloud-init aún ejecutándose, esperando..."
+    sleep 10
+  done
+  echo "✅ cloud-init terminado, procediendo con Docker..."
+  
   echo "🔽 Actualizando paquetes..."
   sudo apt-get update
   
