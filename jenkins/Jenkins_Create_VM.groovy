@@ -3,7 +3,7 @@ pipeline {
   options { timestamps(); disableConcurrentBuilds() }
 
   parameters {
-    choice(name: 'ACTION', choices: ['create', 'rebuild', 'destroy', 'status'], description: 'Acción a ejecutar sobre la VM')
+    choice(name: 'ACTION', choices: ['status', 'create', 'rebuild', 'destroy'], description: 'Acción a ejecutar sobre la VM (status por defecto para evitar creación automática)')
     choice(name: 'VM_CONFIG', choices: ['standard', 'ecommerce_minikube'], description: 'Configuración predefinida de la VM')
     string(name: 'VM_NAME', defaultValue: 'ecommerce-integration-runner', description: 'Nombre del droplet en DigitalOcean')
     string(name: 'VM_REGION', defaultValue: 'nyc3', description: 'Región donde se creará el droplet')
@@ -49,6 +49,23 @@ pipeline {
           echo "🔧 Configuración seleccionada: ${params.VM_CONFIG}"
           echo "📊 Tamaño de VM: ${env.FINAL_SIZE}"
           echo "📄 Template cloud-init: ${env.CLOUD_INIT_TEMPLATE}"
+          echo "📝 Descripción: ${selectedConfig.description}"
+          
+          // Mostrar información importante sobre la acción
+          if (params.ACTION == 'create') {
+            echo "⚠️  ATENCIÓN: Se creará una nueva VM con las siguientes características:"
+            echo "   • Nombre: ${params.VM_NAME}"
+            echo "   • Región: ${params.VM_REGION}"
+            echo "   • Tamaño: ${env.FINAL_SIZE}"
+            echo "   • Imagen: ${params.VM_IMAGE}"
+            echo "   • Costo estimado: ${env.FINAL_SIZE == 's-2vcpu-4gb' ? '~$24/mes' : '~$12/mes'}"
+          } else if (params.ACTION == 'destroy') {
+            echo "⚠️  ATENCIÓN: Se eliminará la VM '${params.VM_NAME}' permanentemente"
+          } else if (params.ACTION == 'rebuild') {
+            echo "⚠️  ATENCIÓN: Se eliminará y recreará la VM '${params.VM_NAME}'"
+          } else {
+            echo "ℹ️  Solo se consultará el estado de la VM '${params.VM_NAME}'"
+          }
         }
       }
     }
