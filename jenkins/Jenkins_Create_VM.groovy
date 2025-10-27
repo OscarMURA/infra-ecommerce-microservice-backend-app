@@ -5,10 +5,6 @@ pipeline {
   parameters {
     choice(name: 'ACTION', choices: ['status', 'create', 'rebuild', 'destroy'], description: 'Acción a ejecutar sobre la VM (status por defecto para evitar creación automática)')
     choice(name: 'VM_CONFIG', choices: ['standard', 'ecommerce_minikube'], description: 'Configuración predefinida de la VM')
-    string(name: 'VM_NAME', defaultValue: 'ecommerce-integration-runner', description: 'Nombre del droplet en DigitalOcean')
-    string(name: 'VM_REGION', defaultValue: 'nyc3', description: 'Región donde se creará el droplet')
-    string(name: 'VM_SIZE', defaultValue: 's-1vcpu-2gb', description: 'Plan/tamaño de la VM (se sobrescribe automáticamente según VM_CONFIG)')
-    string(name: 'VM_IMAGE', defaultValue: 'ubuntu-22-04-x64', description: 'Imagen base a utilizar')
     booleanParam(name: 'ARCHIVE_METADATA', defaultValue: true, description: 'Publicar droplet.properties y jenkins-env.properties como artefactos')
     booleanParam(name: 'CONFIGURE_GCP_ACCESS', defaultValue: true, description: 'Copiar credenciales de GCP y dejar listo gcloud en la VM (solo create/rebuild)')
   }
@@ -26,14 +22,22 @@ pipeline {
           // Configuraciones predefinidas según el tipo de VM
           def configs = [
             'standard': [
+              name: 'ecommerce-integration-runner',
               size: 's-1vcpu-2gb',
+              region: 'nyc3',
+              image: 'ubuntu-22-04-x64',
               cloudInitTemplate: 'cloud-init.yaml',
-              description: 'VM estándar para pruebas de integración'
+              description: 'VM estándar para pruebas de integración',
+              cost: '~$12/mes'
             ],
             'ecommerce_minikube': [
+              name: 'ecommerce-minikube-dev',
               size: 's-2vcpu-4gb',  // 4GB RAM, 2 CPUs como especificaste
+              region: 'nyc3',
+              image: 'ubuntu-22-04-x64',
               cloudInitTemplate: 'cloud-init-minikube.yaml',
-              description: 'VM optimizada para Minikube con recursos adicionales'
+              description: 'VM optimizada para Minikube con recursos adicionales',
+              cost: '~$24/mes'
             ]
           ]
           
@@ -42,29 +46,34 @@ pipeline {
             error "❌ Configuración de VM no válida: ${params.VM_CONFIG}"
           }
           
-          // Usar el tamaño de la configuración seleccionada
-          env.FINAL_SIZE = selectedConfig.size
+          // Establecer todos los valores automáticamente según la configuración
+          env.VM_NAME = selectedConfig.name
+          env.VM_REGION = selectedConfig.region
+          env.VM_SIZE = selectedConfig.size
+          env.VM_IMAGE = selectedConfig.image
           env.CLOUD_INIT_TEMPLATE = selectedConfig.cloudInitTemplate
+          env.VM_COST = selectedConfig.cost
           
           echo "🔧 Configuración seleccionada: ${params.VM_CONFIG}"
-          echo "📊 Tamaño de VM: ${env.FINAL_SIZE}"
+          echo "📊 Tamaño de VM: ${env.VM_SIZE}"
           echo "📄 Template cloud-init: ${env.CLOUD_INIT_TEMPLATE}"
           echo "📝 Descripción: ${selectedConfig.description}"
+          echo "💰 Costo estimado: ${env.VM_COST}"
           
           // Mostrar información importante sobre la acción
           if (params.ACTION == 'create') {
             echo "⚠️  ATENCIÓN: Se creará una nueva VM con las siguientes características:"
-            echo "   • Nombre: ${params.VM_NAME}"
-            echo "   • Región: ${params.VM_REGION}"
-            echo "   • Tamaño: ${env.FINAL_SIZE}"
-            echo "   • Imagen: ${params.VM_IMAGE}"
-            echo "   • Costo estimado: ${env.FINAL_SIZE == 's-2vcpu-4gb' ? '~$24/mes' : '~$12/mes'}"
+            echo "   • Nombre: ${env.VM_NAME}"
+            echo "   • Región: ${env.VM_REGION}"
+            echo "   • Tamaño: ${env.VM_SIZE}"
+            echo "   • Imagen: ${env.VM_IMAGE}"
+            echo "   • Costo estimado: ${env.VM_COST}"
           } else if (params.ACTION == 'destroy') {
-            echo "⚠️  ATENCIÓN: Se eliminará la VM '${params.VM_NAME}' permanentemente"
+            echo "⚠️  ATENCIÓN: Se eliminará la VM '${env.VM_NAME}' permanentemente"
           } else if (params.ACTION == 'rebuild') {
-            echo "⚠️  ATENCIÓN: Se eliminará y recreará la VM '${params.VM_NAME}'"
+            echo "⚠️  ATENCIÓN: Se eliminará y recreará la VM '${env.VM_NAME}'"
           } else {
-            echo "ℹ️  Solo se consultará el estado de la VM '${params.VM_NAME}'"
+            echo "ℹ️  Solo se consultará el estado de la VM '${env.VM_NAME}'"
           }
         }
       }
@@ -77,7 +86,7 @@ pipeline {
           echo "📦 Workspace: ${env.WORKSPACE}"
           echo "➤ Acción: ${params.ACTION}"
           echo "➤ Configuración: ${params.VM_CONFIG}"
-          echo "➤ Droplet: ${params.VM_NAME} (${params.VM_REGION}, ${env.FINAL_SIZE}, ${params.VM_IMAGE})"
+          echo "➤ Droplet: ${env.VM_NAME} (${env.VM_REGION}, ${env.VM_SIZE}, ${env.VM_IMAGE})"
         }
       }
     }
@@ -104,10 +113,10 @@ pipeline {
             def action = params.ACTION
             
             def commonEnv = [
-              "NAME=${params.VM_NAME}",
-              "REGION=${params.VM_REGION}",
-              "SIZE=${env.FINAL_SIZE}",
-              "IMAGE=${params.VM_IMAGE}",
+              "NAME=${env.VM_NAME}",
+              "REGION=${env.VM_REGION}",
+              "SIZE=${env.VM_SIZE}",
+              "IMAGE=${env.VM_IMAGE}",
               "CLOUD_INIT_TEMPLATE=${env.CLOUD_INIT_TEMPLATE}"
             ]
 
@@ -167,7 +176,7 @@ pipeline {
                 script: """
                   set -e
                   curl -sS -H "Authorization: Bearer ${DO_TOKEN}" "https://api.digitalocean.com/v2/droplets?per_page=200" \\
-                    | jq -r --arg NAME "${params.VM_NAME}" '.droplets[] | select(.name==\$NAME) | .networks.v4[] | select(.type=="public") | .ip_address' \\
+                    | jq -r --arg NAME "${env.VM_NAME}" '.droplets[] | select(.name==\$NAME) | .networks.v4[] | select(.type=="public") | .ip_address' \\
                     | head -n1
                 """,
                 returnStdout: true
@@ -184,19 +193,20 @@ pipeline {
               env.VM_IP_ADDRESS = ""
             }
 
-            writeFile file: env.PROPERTIES_FILE, text: """VM_NAME=${params.VM_NAME}
+            writeFile file: env.PROPERTIES_FILE, text: """VM_NAME=${env.VM_NAME}
 DROPLET_IP=${env.DROPLET_IP ?: ''}
 ACTION=${params.ACTION}
 VM_CONFIG=${params.VM_CONFIG}
-REGION=${params.VM_REGION}
-SIZE=${env.FINAL_SIZE}
-IMAGE=${params.VM_IMAGE}
+REGION=${env.VM_REGION}
+SIZE=${env.VM_SIZE}
+IMAGE=${env.VM_IMAGE}
 CLOUD_INIT_TEMPLATE=${env.CLOUD_INIT_TEMPLATE}
+COST=${env.VM_COST}
 """
 
             def triggeredBy = env.BUILD_USER_ID ?: env.BUILD_USER ?: env.BUILD_TAG ?: 'jenkins'
 
-            writeFile file: env.JENKINS_ENV_FILE, text: """VM_NAME=${params.VM_NAME}
+            writeFile file: env.JENKINS_ENV_FILE, text: """VM_NAME=${env.VM_NAME}
 DROPLET_IP=${env.DROPLET_IP ?: ''}
 VM_IP_ADDRESS=${env.VM_IP_ADDRESS ?: ''}
 ACTION=${params.ACTION}
@@ -360,9 +370,10 @@ sshpass -e ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null jenki
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 • Acción ejecutada : ${params.ACTION.toUpperCase()}
 • Configuración    : ${params.VM_CONFIG}
-• Droplet          : ${params.VM_NAME}
-• Región / Size    : ${params.VM_REGION} / ${env.FINAL_SIZE}
-• Imagen           : ${params.VM_IMAGE}
+• Droplet          : ${env.VM_NAME}
+• Región / Size    : ${env.VM_REGION} / ${env.VM_SIZE}
+• Imagen           : ${env.VM_IMAGE}
+• Costo estimado   : ${env.VM_COST}
 • IP pública       : ${ip}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
           """

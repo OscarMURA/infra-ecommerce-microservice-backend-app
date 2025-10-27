@@ -17,10 +17,24 @@ Este pipeline te permite **gestionar completamente** las VMs de DigitalOcean des
 - **`ecommerce_minikube`** - VM Minikube (2 CPUs, 4GB RAM, ~$24/mes)
 
 ### **3. Otros Parámetros**
-- **VM_NAME**: Nombre del droplet (por defecto: `ecommerce-integration-runner`)
-- **VM_REGION**: Región de DigitalOcean (por defecto: `nyc3`)
-- **VM_SIZE**: Se sobrescribe automáticamente según VM_CONFIG
-- **VM_IMAGE**: Imagen base (por defecto: `ubuntu-22-04-x64`)
+- **ARCHIVE_METADATA**: Publicar archivos de propiedades como artefactos (por defecto: `true`)
+- **CONFIGURE_GCP_ACCESS**: Configurar acceso a GCP en la VM (por defecto: `true`)
+
+### **4. Valores Automáticos por Configuración**
+
+#### **Standard**:
+- **VM_NAME**: `ecommerce-integration-runner`
+- **VM_REGION**: `nyc3`
+- **VM_SIZE**: `s-1vcpu-2gb`
+- **VM_IMAGE**: `ubuntu-22-04-x64`
+- **Costo**: `~$12/mes`
+
+#### **ecommerce_minikube**:
+- **VM_NAME**: `ecommerce-minikube-dev`
+- **VM_REGION**: `nyc3`
+- **VM_SIZE**: `s-2vcpu-4gb`
+- **VM_IMAGE**: `ubuntu-22-04-x64`
+- **Costo**: `~$24/mes`
 
 ## 🚀 **Flujo de Trabajo Recomendado**
 
