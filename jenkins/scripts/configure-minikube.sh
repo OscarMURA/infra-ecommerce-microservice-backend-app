@@ -40,10 +40,21 @@ fi
 
 echo "📦 Instalando Minikube..."
 if ! command -v minikube &> /dev/null; then
+  echo "🔽 Descargando Minikube..."
   curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
+  echo "📁 Instalando Minikube..."
   sudo install minikube-linux-amd64 /usr/local/bin/minikube
   rm minikube-linux-amd64
   echo "✅ Minikube instalado"
+  
+  # Verificar que la instalación fue exitosa
+  if command -v minikube &> /dev/null; then
+    echo "✅ Verificación: Minikube está disponible"
+    minikube version
+  else
+    echo "❌ Error: Minikube no está disponible después de la instalación"
+    exit 1
+  fi
 else
   echo "✅ Minikube ya está instalado"
 fi
