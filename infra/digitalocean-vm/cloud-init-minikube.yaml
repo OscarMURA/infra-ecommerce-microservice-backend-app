@@ -68,4 +68,4 @@ runcmd:
   - sudo -u jenkins gcloud config set core/disable_usage_reporting true
   - sudo -u jenkins gcloud config set component_manager/disable_update_check true
 
-final_message: "Cloud-init finished. Host is ready for ecommerce integration jobs with Docker and gcloud. Minikube will be installed via SSH."
+final_message: "Cloud-init finished. Minikube VM is ready with Docker and gcloud. Minikube will be installed via SSH."
