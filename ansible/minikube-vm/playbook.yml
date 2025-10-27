@@ -1,0 +1,125 @@
+---
+- name: Configure Minikube VM
+  hosts: minikube_vm
+  become: yes
+  vars:
+    docker_version: "latest"
+    kubectl_version: "v1.28.0"
+    minikube_version: "latest"
+    minikube_memory: "3072"
+    minikube_cpus: "2"
+    minikube_disk_size: "20g"
+
+  tasks:
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: Install required packages
+      apt:
+        name:
+          - ca-certificates
+          - curl
+          - gnupg
+          - lsb-release
+          - software-properties-common
+          - apt-transport-https
+        state: present
+
+    - name: Add Docker GPG key
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+
+    - name: Add Docker repository
+      apt_repository:
+        repo: "deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+        state: present
+
+    - name: Install Docker
+      apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+          - docker-buildx-plugin
+          - docker-compose-plugin
+        state: present
+
+    - name: Start and enable Docker service
+      systemd:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Add jenkins user to docker group
+      user:
+        name: jenkins
+        groups: docker
+        append: yes
+
+    - name: Download kubectl
+      get_url:
+        url: "https://dl.k8s.io/release/{{ kubectl_version }}/bin/linux/amd64/kubectl"
+        dest: /tmp/kubectl
+        mode: '0755'
+
+    - name: Install kubectl
+      copy:
+        src: /tmp/kubectl
+        dest: /usr/local/bin/kubectl
+        mode: '0755'
+        remote_src: yes
+
+    - name: Download Minikube
+      get_url:
+        url: "https://storage.googleapis.com/minikube/releases/{{ minikube_version }}/minikube-linux-amd64"
+        dest: /tmp/minikube
+        mode: '0755'
+
+    - name: Install Minikube
+      copy:
+        src: /tmp/minikube
+        dest: /usr/local/bin/minikube
+        mode: '0755'
+        remote_src: yes
+
+    - name: Configure Minikube
+      shell: |
+        minikube config set driver docker
+        minikube config set memory {{ minikube_memory }}
+        minikube config set cpus {{ minikube_cpus }}
+        minikube config set disk-size {{ minikube_disk_size }}
+      become_user: jenkins
+
+    - name: Start Minikube
+      shell: |
+        minikube start --driver=docker --memory={{ minikube_memory }} --cpus={{ minikube_cpus }} --disk-size={{ minikube_disk_size }}
+      become_user: jenkins
+
+    - name: Verify Minikube status
+      shell: minikube status
+      become_user: jenkins
+      register: minikube_status
+
+    - name: Display Minikube status
+      debug:
+        var: minikube_status.stdout_lines
+
+    - name: Get Minikube cluster info
+      shell: minikube kubectl -- get nodes
+      become_user: jenkins
+      register: cluster_info
+
+    - name: Display cluster info
+      debug:
+        var: cluster_info.stdout_lines
+
+    - name: Clean up temporary files
+      file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /tmp/kubectl
+        - /tmp/minikube

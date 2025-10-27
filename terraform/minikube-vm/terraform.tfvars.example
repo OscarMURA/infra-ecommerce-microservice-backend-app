@@ -1,0 +1,8 @@
+# Terraform variables for Minikube VM
+# Copy this file to terraform.tfvars and fill in your values
+
+do_token   = "your_digitalocean_token_here"
+vm_name    = "ecommerce-minikube-dev"
+region     = "nyc3"
+size       = "s-2vcpu-4gb"
+vm_password = "your_vm_password_here"

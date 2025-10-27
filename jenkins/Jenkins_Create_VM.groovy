@@ -4,7 +4,7 @@ pipeline {
 
   parameters {
     choice(name: 'ACTION', choices: ['status', 'create', 'rebuild', 'destroy'], description: 'Acción a ejecutar sobre la VM (status por defecto para evitar creación automática)')
-    choice(name: 'VM_CONFIG', choices: ['standard', 'ecommerce_minikube'], description: 'Configuración predefinida de la VM')
+    choice(name: 'VM_CONFIG', choices: ['standard', 'ecommerce_minikube'], description: 'Configuración predefinida de la VM (ecommerce_minikube usa Terraform + Ansible)')
     booleanParam(name: 'ARCHIVE_METADATA', defaultValue: true, description: 'Publicar droplet.properties y jenkins-env.properties como artefactos')
     booleanParam(name: 'CONFIGURE_GCP_ACCESS', defaultValue: true, description: 'Copiar credenciales de GCP y dejar listo gcloud en la VM (solo create/rebuild)')
   }
@@ -36,7 +36,7 @@ pipeline {
               region: 'nyc3',
               image: 'ubuntu-22-04-x64',
               cloudInitTemplate: 'cloud-init-minikube.yaml',
-              description: 'VM optimizada para Minikube con recursos adicionales',
+              description: 'VM optimizada para Minikube con Terraform + Ansible (sin conflictos de cloud-init)',
               cost: '~$24/mes'
             ]
           ]
@@ -225,7 +225,7 @@ TIMESTAMP=${new Date().format('yyyy-MM-dd HH:mm:ss')}
       }
     }
 
-    stage('Configure Minikube') {
+    stage('Configure Minikube with Terraform + Ansible') {
       when {
         expression {
           params.VM_CONFIG == 'ecommerce_minikube' &&
@@ -235,7 +235,8 @@ TIMESTAMP=${new Date().format('yyyy-MM-dd HH:mm:ss')}
       }
       steps {
         withCredentials([
-          string(credentialsId: 'integration-vm-password', variable: 'VM_PASSWORD')
+          string(credentialsId: 'integration-vm-password', variable: 'VM_PASSWORD'),
+          string(credentialsId: 'digitalocean-token', variable: 'DO_TOKEN')
         ]) {
           script {
             def targetIp = env.DROPLET_IP
@@ -243,15 +244,76 @@ TIMESTAMP=${new Date().format('yyyy-MM-dd HH:mm:ss')}
               error "❌ No hay IP disponible para configurar Minikube en la VM."
             }
 
-            echo "🚀 Configurando Minikube en ${targetIp}..."
+            echo "🚀 Configurando Minikube con Terraform + Ansible en ${targetIp}..."
 
+            // Crear terraform.tfvars dinámicamente
+            writeFile file: 'terraform/minikube-vm/terraform.tfvars', text: """do_token   = "${DO_TOKEN}"
+vm_name    = "${env.VM_NAME}"
+region     = "${env.VM_REGION}"
+size       = "${env.VM_SIZE}"
+vm_password = "${VM_PASSWORD}"
+"""
+
+            // Ejecutar el script de despliegue de Terraform + Ansible
             sh """
 set -e
-export SSHPASS="\$VM_PASSWORD"
 
-# Ejecutar el nuevo script de configuración de Minikube
-echo "🚀 Ejecutando script de configuración de Minikube..."
-./jenkins/scripts/configure-minikube-new.sh ${targetIp}
+echo "🔧 Configurando Terraform para Minikube..."
+cd terraform/minikube-vm
+
+# Inicializar Terraform si es necesario
+if [ ! -d ".terraform" ]; then
+  echo "📦 Inicializando Terraform..."
+  terraform init
+fi
+
+# Aplicar configuración de Terraform
+echo "🚀 Aplicando configuración de Terraform..."
+terraform apply -auto-approve
+
+# Obtener IP de la VM creada
+VM_IP=\$(terraform output -raw droplet_ip)
+echo "🌐 VM IP: \$VM_IP"
+
+# Esperar a que SSH esté disponible
+echo "⏳ Esperando que SSH esté disponible..."
+for i in \$(seq 1 30); do
+  if sshpass -p "${VM_PASSWORD}" ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null jenkins@\$VM_IP "echo SSH ready" >/dev/null 2>&1; then
+    echo "✅ SSH disponible en \$VM_IP"
+    break
+  fi
+  echo "   reintentando (\$i/30)..."
+  sleep 10
+done
+
+# Configurar con Ansible
+echo "🎭 Configurando con Ansible..."
+cd ../../ansible/minikube-vm
+
+# Crear inventario dinámico
+cat > inventory.ini << EOF
+[minikube_vm]
+\$VM_IP ansible_user=jenkins ansible_password=${VM_PASSWORD}
+EOF
+
+# Configurar ansible.cfg
+cat > ansible.cfg << EOF
+[defaults]
+host_key_checking = False
+inventory = inventory.ini
+remote_user = jenkins
+private_key_file = 
+ansible_ssh_pass = ${VM_PASSWORD}
+
+[ssh_connection]
+ssh_args = -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null
+EOF
+
+# Ejecutar playbook
+echo "🚀 Ejecutando playbook de Ansible..."
+ansible-playbook -i inventory.ini playbook.yml
+
+echo "✅ Minikube configurado exitosamente con Terraform + Ansible"
 """
           }
         }
