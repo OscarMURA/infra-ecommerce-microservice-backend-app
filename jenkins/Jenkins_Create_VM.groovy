@@ -348,11 +348,20 @@ sshpass -e ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null jenki
 sshpass -e ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null jenkins@${targetIp} "
   set -e
   export CLOUDSDK_CORE_DISABLE_PROMPTS=1
-  gcloud auth activate-service-account --key-file=\$TMP_REMOTE_CRED
-  gcloud config set project '$GCP_PROJECT_ID'
-  gcloud auth configure-docker us-docker.pkg.dev --quiet || true
-  gcloud auth configure-docker gcr.io --quiet || true
-  echo '✅ gcloud configurado para el proyecto $GCP_PROJECT_ID'
+  
+  # Verificar si gcloud está disponible
+  if command -v gcloud >/dev/null 2>&1; then
+    echo '✅ gcloud encontrado, configurando...'
+    gcloud auth activate-service-account --key-file=\$TMP_REMOTE_CRED
+    gcloud config set project '$GCP_PROJECT_ID'
+    gcloud auth configure-docker us-docker.pkg.dev --quiet || true
+    gcloud auth configure-docker gcr.io --quiet || true
+    echo '✅ gcloud configurado para el proyecto $GCP_PROJECT_ID'
+  else
+    echo '⚠️  gcloud no está disponible en la VM'
+    echo 'ℹ️  La VM está lista pero sin acceso a Google Cloud'
+    echo 'ℹ️  Esto puede ser normal si cloud-init aún está ejecutándose'
+  fi
 "
 """
           }
