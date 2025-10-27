@@ -26,7 +26,8 @@ if [[ -z "${VM_PASSWORD:-}" ]]; then
 fi
 
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-CLOUD_INIT_TEMPLATE="${SCRIPT_DIR}/cloud-init.yaml"
+CLOUD_INIT_TEMPLATE="${CLOUD_INIT_TEMPLATE:-cloud-init.yaml}"
+CLOUD_INIT_TEMPLATE="${SCRIPT_DIR}/${CLOUD_INIT_TEMPLATE}"
 if [[ ! -f "${CLOUD_INIT_TEMPLATE}" ]]; then
   echo "cloud-init template not found at ${CLOUD_INIT_TEMPLATE}" >&2
   exit 1
@@ -36,6 +37,7 @@ fi
 USER_DATA=$(sed "s|__VM_PASSWORD__|${VM_PASSWORD//|/\|}|g" "${CLOUD_INIT_TEMPLATE}")
 
 echo "Creating droplet '${NAME}' in ${REGION} (${SIZE})..."
+echo "Using cloud-init template: ${CLOUD_INIT_TEMPLATE}"
 CREATE_PAYLOAD=$(jq -n \
   --arg name "${NAME}" \
   --arg region "${REGION}" \

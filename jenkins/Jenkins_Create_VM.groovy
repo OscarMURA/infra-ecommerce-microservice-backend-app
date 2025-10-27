@@ -4,9 +4,10 @@ pipeline {
 
   parameters {
     choice(name: 'ACTION', choices: ['create', 'rebuild', 'destroy', 'status'], description: 'Acción a ejecutar sobre la VM')
+    choice(name: 'VM_CONFIG', choices: ['standard', 'ecommerce_minikube'], description: 'Configuración predefinida de la VM')
     string(name: 'VM_NAME', defaultValue: 'ecommerce-integration-runner', description: 'Nombre del droplet en DigitalOcean')
     string(name: 'VM_REGION', defaultValue: 'nyc3', description: 'Región donde se creará el droplet')
-    string(name: 'VM_SIZE', defaultValue: 's-1vcpu-2gb', description: 'Plan/tamaño de la VM')
+    string(name: 'VM_SIZE', defaultValue: 's-1vcpu-2gb', description: 'Plan/tamaño de la VM (se sobrescribe automáticamente según VM_CONFIG)')
     string(name: 'VM_IMAGE', defaultValue: 'ubuntu-22-04-x64', description: 'Imagen base a utilizar')
     booleanParam(name: 'ARCHIVE_METADATA', defaultValue: true, description: 'Publicar droplet.properties y jenkins-env.properties como artefactos')
     booleanParam(name: 'CONFIGURE_GCP_ACCESS', defaultValue: true, description: 'Copiar credenciales de GCP y dejar listo gcloud en la VM (solo create/rebuild)')
@@ -25,6 +26,7 @@ pipeline {
         script {
           echo "📦 Workspace: ${env.WORKSPACE}"
           echo "➤ Acción: ${params.ACTION}"
+          echo "➤ Configuración: ${params.VM_CONFIG}"
           echo "➤ Droplet: ${params.VM_NAME} (${params.VM_REGION}, ${params.VM_SIZE}, ${params.VM_IMAGE})"
         }
       }
@@ -50,11 +52,41 @@ pipeline {
         ]) {
           script {
             def action = params.ACTION
+            def vmConfig = params.VM_CONFIG
+            
+            // Configuraciones predefinidas según el tipo de VM
+            def configs = [
+              'standard': [
+                size: 's-1vcpu-2gb',
+                cloudInitTemplate: 'cloud-init.yaml',
+                description: 'VM estándar para pruebas de integración'
+              ],
+              'ecommerce_minikube': [
+                size: 's-2vcpu-4gb',  // 4GB RAM, 2 CPUs como especificaste
+                cloudInitTemplate: 'cloud-init-minikube.yaml',
+                description: 'VM optimizada para Minikube con recursos adicionales'
+              ]
+            ]
+            
+            def selectedConfig = configs[vmConfig]
+            if (!selectedConfig) {
+              error "❌ Configuración de VM no válida: ${vmConfig}"
+            }
+            
+            // Usar el tamaño de la configuración seleccionada
+            def finalSize = selectedConfig.size
+            def cloudInitTemplate = selectedConfig.cloudInitTemplate
+            
+            echo "🔧 Configuración seleccionada: ${vmConfig}"
+            echo "📊 Tamaño de VM: ${finalSize}"
+            echo "📄 Template cloud-init: ${cloudInitTemplate}"
+            
             def commonEnv = [
               "NAME=${params.VM_NAME}",
               "REGION=${params.VM_REGION}",
-              "SIZE=${params.VM_SIZE}",
-              "IMAGE=${params.VM_IMAGE}"
+              "SIZE=${finalSize}",
+              "IMAGE=${params.VM_IMAGE}",
+              "CLOUD_INIT_TEMPLATE=${cloudInitTemplate}"
             ]
 
             if (action == 'create') {
@@ -133,9 +165,11 @@ pipeline {
             writeFile file: env.PROPERTIES_FILE, text: """VM_NAME=${params.VM_NAME}
 DROPLET_IP=${env.DROPLET_IP ?: ''}
 ACTION=${params.ACTION}
+VM_CONFIG=${params.VM_CONFIG}
 REGION=${params.VM_REGION}
-SIZE=${params.VM_SIZE}
+SIZE=${finalSize}
 IMAGE=${params.VM_IMAGE}
+CLOUD_INIT_TEMPLATE=${cloudInitTemplate}
 """
 
             def triggeredBy = env.BUILD_USER_ID ?: env.BUILD_USER ?: env.BUILD_TAG ?: 'jenkins'
@@ -144,6 +178,7 @@ IMAGE=${params.VM_IMAGE}
 DROPLET_IP=${env.DROPLET_IP ?: ''}
 VM_IP_ADDRESS=${env.VM_IP_ADDRESS ?: ''}
 ACTION=${params.ACTION}
+VM_CONFIG=${params.VM_CONFIG}
 BUILD_NUMBER=${env.BUILD_NUMBER}
 JOB_NAME=${env.JOB_NAME}
 TRIGGERED_BY=${triggeredBy}
@@ -153,6 +188,79 @@ TIMESTAMP=${new Date().format('yyyy-MM-dd HH:mm:ss')}
             if (params.ARCHIVE_METADATA) {
               archiveArtifacts artifacts: "${env.PROPERTIES_FILE},${env.JENKINS_ENV_FILE}", fingerprint: true
             }
+          }
+        }
+      }
+    }
+
+    stage('Configure Minikube') {
+      when {
+        expression {
+          params.VM_CONFIG == 'ecommerce_minikube' &&
+            env.DROPLET_IP &&
+            (params.ACTION == 'create' || params.ACTION == 'rebuild')
+        }
+      }
+      steps {
+        withCredentials([
+          string(credentialsId: 'integration-vm-password', variable: 'VM_PASSWORD')
+        ]) {
+          script {
+            def targetIp = env.DROPLET_IP
+            if (!targetIp) {
+              error "❌ No hay IP disponible para configurar Minikube en la VM."
+            }
+
+            echo "🚀 Configurando Minikube en ${targetIp}..."
+
+            sh """
+set -e
+export SSHPASS="\$VM_PASSWORD"
+
+echo "⏳ Esperando a que la VM acepte conexiones SSH..."
+READY=0
+for i in \$(seq 1 30); do
+  if sshpass -e ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null jenkins@${targetIp} "echo VM ready" >/dev/null 2>&1; then
+    READY=1
+    break
+  fi
+  echo "   reintentando (\$i/30)..."
+  sleep 10
+done
+if [ "\$READY" -ne 1 ]; then
+  echo "❌ No fue posible establecer conexión SSH con ${targetIp}"
+  exit 1
+fi
+
+echo "🔧 Configurando Minikube..."
+sshpass -e ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null jenkins@${targetIp} << 'MINIKUBE_CONFIG'
+set -euo pipefail
+
+echo "🔍 Verificando estado de Minikube..."
+if minikube status >/dev/null 2>&1; then
+  echo "✅ Minikube ya está ejecutándose"
+else
+  echo "🚀 Iniciando Minikube..."
+  minikube start --driver=docker --memory=3072 --cpus=2 --disk-size=20g
+fi
+
+echo "📊 Estado de Minikube:"
+minikube status
+
+echo "🔧 Configurando kubectl..."
+minikube kubectl -- get nodes || true
+
+echo "🌐 Servicios disponibles:"
+minikube service list || true
+
+echo "📋 Información del cluster:"
+minikube kubectl -- get all || true
+
+echo "✅ Minikube configurado exitosamente"
+MINIKUBE_CONFIG
+
+echo "🎉 Configuración de Minikube completada"
+"""
           }
         }
       }
@@ -229,8 +337,9 @@ sshpass -e ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null jenki
  Jenkins_Create_VM Summary
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 • Acción ejecutada : ${params.ACTION.toUpperCase()}
+• Configuración    : ${params.VM_CONFIG}
 • Droplet          : ${params.VM_NAME}
-• Región / Size    : ${params.VM_REGION} / ${params.VM_SIZE}
+• Región / Size    : ${params.VM_REGION} / ${finalSize}
 • Imagen           : ${params.VM_IMAGE}
 • IP pública       : ${ip}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

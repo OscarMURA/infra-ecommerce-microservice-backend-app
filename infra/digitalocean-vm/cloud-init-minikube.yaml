@@ -1,0 +1,170 @@
+#cloud-config
+hostname: ecommerce-minikube-vm
+manage_etc_hosts: true
+ssh_pwauth: true
+
+users:
+  - name: jenkins
+    gecos: Jenkins CI Runner - Minikube
+    groups: sudo, docker
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    shell: /bin/bash
+
+chpasswd:
+  list: |
+    jenkins:__VM_PASSWORD__
+  expire: false
+
+package_update: true
+packages:
+  - ca-certificates
+  - curl
+  - gnupg
+  - ufw
+  - jq
+  - git
+  - build-essential
+  - python3
+  - python3-pip
+  - openjdk-17-jdk
+  - conntrack
+  - socat
+  - iptables
+  - bridge-utils
+  - net-tools
+  - htop
+  - vim
+
+write_files:
+  - path: /etc/motd
+    permissions: '0644'
+    owner: root:root
+    content: |
+      Bienvenido a la VM de Minikube para ecommerce.
+      Este host fue aprovisionado automáticamente por Jenkins para ejecutar pruebas con Minikube.
+      
+      Recursos disponibles:
+      - 4GB RAM, 2 CPUs
+      - Docker + Minikube preinstalado
+      - kubectl configurado
+      - Acceso desde Jenkins Server
+
+  - path: /etc/sysctl.d/99-minikube.conf
+    permissions: '0644'
+    owner: root:root
+    content: |
+      # Configuraciones para Minikube
+      vm.max_map_count=262144
+      fs.inotify.max_user_watches=1048576
+      fs.inotify.max_user_instances=8192
+
+runcmd:
+  # Configurar SSH
+  - sed -i 's/^#\?PasswordAuthentication.*/PasswordAuthentication yes/' /etc/ssh/sshd_config
+  - systemctl reload ssh || systemctl restart ssh
+
+  # Instalar Docker
+  - install -m 0755 -d /etc/apt/keyrings
+  - curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+  - chmod a+r /etc/apt/keyrings/docker.gpg
+  - bash -lc 'echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu jammy stable" > /etc/apt/sources.list.d/docker.list'
+
+  - apt-get update
+  - apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+  - usermod -aG docker jenkins
+
+  # Configurar firewall para Minikube
+  - ufw allow 22/tcp
+  - ufw allow 3000,8000,8080,8081,8082,8083,9411/tcp
+  - ufw allow 8443/tcp  # Kubernetes API
+  - ufw allow 30000:32767/tcp  # NodePort range
+  - ufw --force enable
+
+  # Crear directorios necesarios
+  - mkdir -p /opt/ecommerce-app
+  - chown -R jenkins:jenkins /opt/ecommerce-app
+
+  # Instalar Google Cloud SDK
+  - echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | tee -a /etc/apt/sources.list.d/google-cloud-sdk.list
+  - curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key --keyring /usr/share/keyrings/cloud.google.gpg add -
+  - apt-get update
+  - apt-get install -y google-cloud-sdk google-cloud-sdk-gke-gcloud-auth-plugin
+  - sudo -u jenkins gcloud config set core/disable_usage_reporting true
+  - sudo -u jenkins gcloud config set component_manager/disable_update_check true
+
+  # Instalar kubectl
+  - curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+  - install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+  - rm kubectl
+
+  # Instalar Minikube
+  - curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
+  - install minikube-linux-amd64 /usr/local/bin/minikube
+  - rm minikube-linux-amd64
+
+  # Configurar Minikube para el usuario jenkins
+  - sudo -u jenkins bash -c 'mkdir -p /home/jenkins/.minikube'
+  - sudo -u jenkins bash -c 'mkdir -p /home/jenkins/.kube'
+
+  # Configurar Minikube con Docker driver y recursos optimizados
+  - sudo -u jenkins bash -c 'minikube config set driver docker'
+  - sudo -u jenkins bash -c 'minikube config set memory 3072'  # 3GB para Minikube (dejando 1GB para el sistema)
+  - sudo -u jenkins bash -c 'minikube config set cpus 2'
+  - sudo -u jenkins bash -c 'minikube config set disk-size 20g'
+
+  # Inicializar Minikube
+  - sudo -u jenkins bash -c 'minikube start --driver=docker --memory=3072 --cpus=2 --disk-size=20g'
+
+  # Configurar kubectl para usar el contexto de Minikube
+  - sudo -u jenkins bash -c 'minikube kubectl -- get pods' || true
+
+  # Crear alias útiles para el usuario jenkins
+  - sudo -u jenkins bash -c 'echo "alias k=\"minikube kubectl --\"" >> /home/jenkins/.bashrc'
+  - sudo -u jenkins bash -c 'echo "alias minikube-dashboard=\"minikube dashboard --url\"" >> /home/jenkins/.bashrc'
+
+  # Configurar acceso desde Jenkins Server (permitir conexiones externas)
+  - sudo -u jenkins bash -c 'minikube service --all --url' || true
+
+  # Aplicar configuraciones del kernel
+  - sysctl --system
+
+  # Crear script de utilidades para Minikube
+  - cat > /home/jenkins/minikube-utils.sh << 'EOF'
+#!/bin/bash
+# Utilidades para Minikube
+
+case "$1" in
+  "status")
+    minikube status
+    ;;
+  "dashboard")
+    minikube dashboard --url
+    ;;
+  "services")
+    minikube service list
+    ;;
+  "logs")
+    if [ -n "$2" ]; then
+      minikube kubectl -- logs "$2"
+    else
+      echo "Uso: $0 logs <pod-name>"
+    fi
+    ;;
+  "restart")
+    minikube stop
+    minikube start
+    ;;
+  *)
+    echo "Utilidades disponibles:"
+    echo "  $0 status     - Estado de Minikube"
+    echo "  $0 dashboard  - Abrir dashboard"
+    echo "  $0 services   - Listar servicios"
+    echo "  $0 logs <pod> - Ver logs de un pod"
+    echo "  $0 restart    - Reiniciar Minikube"
+    ;;
+esac
+EOF
+  - chmod +x /home/jenkins/minikube-utils.sh
+  - chown jenkins:jenkins /home/jenkins/minikube-utils.sh
+
+final_message: "Cloud-init finished. Minikube VM is ready with Docker, kubectl, and Minikube configured. Use 'minikube-utils.sh' for common operations."
