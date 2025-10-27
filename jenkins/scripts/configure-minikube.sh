@@ -23,24 +23,10 @@ for i in $(seq 1 30); do
   sleep 10
 done
 
-# Configurar Minikube y todas las dependencias
-echo "🚀 Instalando Docker, kubectl, Minikube y Google Cloud SDK..."
+# Configurar Minikube (Docker y Google Cloud SDK ya están instalados)
+echo "🚀 Instalando kubectl y Minikube..."
 sshpass -e ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null jenkins@"${VM_IP}" << 'EOF'
 set -euo pipefail
-
-echo "📦 Instalando Docker..."
-if ! command -v docker &> /dev/null; then
-  sudo install -m 0755 -d /etc/apt/keyrings
-  curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-  sudo chmod a+r /etc/apt/keyrings/docker.gpg
-  echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu jammy stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-  sudo apt-get update
-  sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
-  sudo usermod -aG docker jenkins
-  echo "✅ Docker instalado"
-else
-  echo "✅ Docker ya está instalado"
-fi
 
 echo "📦 Instalando kubectl..."
 if ! command -v kubectl &> /dev/null; then
@@ -60,19 +46,6 @@ if ! command -v minikube &> /dev/null; then
   echo "✅ Minikube instalado"
 else
   echo "✅ Minikube ya está instalado"
-fi
-
-echo "📦 Instalando Google Cloud SDK..."
-if ! command -v gcloud &> /dev/null; then
-  echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | sudo tee -a /etc/apt/sources.list.d/google-cloud-sdk.list
-  curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key --keyring /usr/share/keyrings/cloud.google.gpg add -
-  sudo apt-get update
-  sudo apt-get install -y google-cloud-sdk google-cloud-sdk-gke-gcloud-auth-plugin
-  gcloud config set core/disable_usage_reporting true
-  gcloud config set component_manager/disable_update_check true
-  echo "✅ Google Cloud SDK instalado"
-else
-  echo "✅ Google Cloud SDK ya está instalado"
 fi
 
 echo "🔧 Configurando Minikube..."
@@ -101,7 +74,7 @@ minikube service list || true
 echo "📋 Información del cluster:"
 minikube kubectl -- get all || true
 
-echo "✅ Todas las herramientas configuradas exitosamente"
+echo "✅ Minikube configurado exitosamente"
 EOF
 
 echo "🎉 Configuración de Minikube completada en ${VM_IP}"
