@@ -19,6 +19,35 @@ pipeline {
     JENKINS_ENV_FILE = "jenkins-env.properties"
   }
 
+  script {
+    // Configuraciones predefinidas según el tipo de VM
+    def configs = [
+      'standard': [
+        size: 's-1vcpu-2gb',
+        cloudInitTemplate: 'cloud-init.yaml',
+        description: 'VM estándar para pruebas de integración'
+      ],
+      'ecommerce_minikube': [
+        size: 's-2vcpu-4gb',  // 4GB RAM, 2 CPUs como especificaste
+        cloudInitTemplate: 'cloud-init-minikube.yaml',
+        description: 'VM optimizada para Minikube con recursos adicionales'
+      ]
+    ]
+    
+    def selectedConfig = configs[params.VM_CONFIG]
+    if (!selectedConfig) {
+      error "❌ Configuración de VM no válida: ${params.VM_CONFIG}"
+    }
+    
+    // Usar el tamaño de la configuración seleccionada
+    env.FINAL_SIZE = selectedConfig.size
+    env.CLOUD_INIT_TEMPLATE = selectedConfig.cloudInitTemplate
+    
+    echo "🔧 Configuración seleccionada: ${params.VM_CONFIG}"
+    echo "📊 Tamaño de VM: ${env.FINAL_SIZE}"
+    echo "📄 Template cloud-init: ${env.CLOUD_INIT_TEMPLATE}"
+  }
+
   stages {
     stage('Checkout') {
       steps {
@@ -52,41 +81,13 @@ pipeline {
         ]) {
           script {
             def action = params.ACTION
-            def vmConfig = params.VM_CONFIG
-            
-            // Configuraciones predefinidas según el tipo de VM
-            def configs = [
-              'standard': [
-                size: 's-1vcpu-2gb',
-                cloudInitTemplate: 'cloud-init.yaml',
-                description: 'VM estándar para pruebas de integración'
-              ],
-              'ecommerce_minikube': [
-                size: 's-2vcpu-4gb',  // 4GB RAM, 2 CPUs como especificaste
-                cloudInitTemplate: 'cloud-init-minikube.yaml',
-                description: 'VM optimizada para Minikube con recursos adicionales'
-              ]
-            ]
-            
-            def selectedConfig = configs[vmConfig]
-            if (!selectedConfig) {
-              error "❌ Configuración de VM no válida: ${vmConfig}"
-            }
-            
-            // Usar el tamaño de la configuración seleccionada
-            def finalSize = selectedConfig.size
-            def cloudInitTemplate = selectedConfig.cloudInitTemplate
-            
-            echo "🔧 Configuración seleccionada: ${vmConfig}"
-            echo "📊 Tamaño de VM: ${finalSize}"
-            echo "📄 Template cloud-init: ${cloudInitTemplate}"
             
             def commonEnv = [
               "NAME=${params.VM_NAME}",
               "REGION=${params.VM_REGION}",
-              "SIZE=${finalSize}",
+              "SIZE=${env.FINAL_SIZE}",
               "IMAGE=${params.VM_IMAGE}",
-              "CLOUD_INIT_TEMPLATE=${cloudInitTemplate}"
+              "CLOUD_INIT_TEMPLATE=${env.CLOUD_INIT_TEMPLATE}"
             ]
 
             if (action == 'create') {
@@ -167,9 +168,9 @@ DROPLET_IP=${env.DROPLET_IP ?: ''}
 ACTION=${params.ACTION}
 VM_CONFIG=${params.VM_CONFIG}
 REGION=${params.VM_REGION}
-SIZE=${finalSize}
+SIZE=${env.FINAL_SIZE}
 IMAGE=${params.VM_IMAGE}
-CLOUD_INIT_TEMPLATE=${cloudInitTemplate}
+CLOUD_INIT_TEMPLATE=${env.CLOUD_INIT_TEMPLATE}
 """
 
             def triggeredBy = env.BUILD_USER_ID ?: env.BUILD_USER ?: env.BUILD_TAG ?: 'jenkins'
@@ -339,7 +340,7 @@ sshpass -e ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null jenki
 • Acción ejecutada : ${params.ACTION.toUpperCase()}
 • Configuración    : ${params.VM_CONFIG}
 • Droplet          : ${params.VM_NAME}
-• Región / Size    : ${params.VM_REGION} / ${finalSize}
+• Región / Size    : ${params.VM_REGION} / ${env.FINAL_SIZE}
 • Imagen           : ${params.VM_IMAGE}
 • IP pública       : ${ip}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
