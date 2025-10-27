@@ -249,49 +249,9 @@ TIMESTAMP=${new Date().format('yyyy-MM-dd HH:mm:ss')}
 set -e
 export SSHPASS="\$VM_PASSWORD"
 
-echo "⏳ Esperando a que la VM acepte conexiones SSH..."
-READY=0
-for i in \$(seq 1 60); do
-  if sshpass -e ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null jenkins@${targetIp} "echo VM ready" >/dev/null 2>&1; then
-    READY=1
-    break
-  fi
-  echo "   reintentando (\$i/60)..."
-  sleep 10
-done
-if [ "\$READY" -ne 1 ]; then
-  echo "❌ No fue posible establecer conexión SSH con ${targetIp}"
-  exit 1
-fi
-
-echo "🔧 Configurando Minikube..."
-sshpass -e ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null jenkins@${targetIp} << 'MINIKUBE_CONFIG'
-set -euo pipefail
-
-echo "🔍 Verificando estado de Minikube..."
-if minikube status >/dev/null 2>&1; then
-  echo "✅ Minikube ya está ejecutándose"
-else
-  echo "🚀 Iniciando Minikube..."
-  minikube start --driver=docker --memory=3072 --cpus=2 --disk-size=20g
-fi
-
-echo "📊 Estado de Minikube:"
-minikube status
-
-echo "🔧 Configurando kubectl..."
-minikube kubectl -- get nodes || true
-
-echo "🌐 Servicios disponibles:"
-minikube service list || true
-
-echo "📋 Información del cluster:"
-minikube kubectl -- get all || true
-
-echo "✅ Minikube configurado exitosamente"
-MINIKUBE_CONFIG
-
-echo "🎉 Configuración de Minikube completada"
+# Ejecutar el nuevo script de configuración de Minikube
+echo "🚀 Ejecutando script de configuración de Minikube..."
+./jenkins/scripts/configure-minikube-new.sh ${targetIp}
 """
           }
         }
