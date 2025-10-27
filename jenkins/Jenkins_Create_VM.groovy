@@ -112,54 +112,125 @@ pipeline {
           script {
             def action = params.ACTION
             
-            def commonEnv = [
-              "NAME=${env.VM_NAME}",
-              "REGION=${env.VM_REGION}",
-              "SIZE=${env.VM_SIZE}",
-              "IMAGE=${env.VM_IMAGE}",
-              "CLOUD_INIT_TEMPLATE=${env.CLOUD_INIT_TEMPLATE}"
-            ]
+            if (params.VM_CONFIG == 'ecommerce_minikube') {
+              // Usar Terraform para Minikube
+              echo "🚀 Usando Terraform para crear VM de Minikube..."
+              
+              // Crear terraform.tfvars dinámicamente
+              writeFile file: 'terraform/minikube-vm/terraform.tfvars', text: """do_token   = "${DO_TOKEN}"
+vm_name    = "${env.VM_NAME}"
+region     = "${env.VM_REGION}"
+size       = "${env.VM_SIZE}"
+vm_password = "${VM_PASSWORD}"
+"""
 
-            if (action == 'create') {
-              withEnv(commonEnv + ["VM_PASSWORD=${VM_PASSWORD}"]) {
-                dir(env.INFRA_DIR) {
-                  sh '''
-                    set -e
-                    ./create-do-droplet.sh
-                  '''
-                }
-              }
-            } else if (action == 'rebuild') {
-              withEnv(commonEnv + ["ALLOW_MISSING=1"]) {
-                dir(env.INFRA_DIR) {
-                  sh '''
-                    set -e
-                    echo "🔁 Eliminando droplet existente (si aplica)..."
-                    ./delete-do-droplet.sh || true
-                  '''
-                }
-              }
-              sleep(time: 10, unit: 'SECONDS')
-              withEnv(commonEnv + ["VM_PASSWORD=${VM_PASSWORD}"]) {
-                dir(env.INFRA_DIR) {
-                  sh '''
-                    set -e
-                    echo "🚀 Creando droplet desde cero..."
-                    ./create-do-droplet.sh
-                  '''
-                }
-              }
-            } else if (action == 'destroy') {
-              withEnv(commonEnv + ["ALLOW_MISSING=1"]) {
-                dir(env.INFRA_DIR) {
-                  sh '''
-                    set -e
-                    ./delete-do-droplet.sh
-                  '''
-                }
+              if (action == 'create') {
+                sh """
+set -e
+echo "🔧 Configurando Terraform para Minikube..."
+cd terraform/minikube-vm
+
+# Inicializar Terraform si es necesario
+if [ ! -d ".terraform" ]; then
+  echo "📦 Inicializando Terraform..."
+  terraform init
+fi
+
+# Aplicar configuración de Terraform
+echo "🚀 Aplicando configuración de Terraform..."
+terraform apply -auto-approve
+
+# Obtener IP de la VM creada
+VM_IP=\$(terraform output -raw droplet_ip)
+echo "🌐 VM IP: \$VM_IP"
+echo "VM_IP=\$VM_IP" > ../../vm-info.properties
+"""
+              } else if (action == 'rebuild') {
+                sh """
+set -e
+echo "🔁 Reconstruyendo VM de Minikube con Terraform..."
+cd terraform/minikube-vm
+
+# Destruir VM existente
+echo "🗑️ Destruyendo VM existente..."
+terraform destroy -auto-approve || true
+
+# Crear nueva VM
+echo "🚀 Creando nueva VM..."
+terraform apply -auto-approve
+
+# Obtener IP de la VM creada
+VM_IP=\$(terraform output -raw droplet_ip)
+echo "🌐 VM IP: \$VM_IP"
+echo "VM_IP=\$VM_IP" > ../../vm-info.properties
+"""
+              } else if (action == 'destroy') {
+                sh """
+set -e
+echo "🗑️ Destruyendo VM de Minikube con Terraform..."
+cd terraform/minikube-vm
+terraform destroy -auto-approve
+"""
+              } else {
+                echo "ℹ️ Acción de solo estado - consultando estado de Terraform..."
+                sh """
+cd terraform/minikube-vm
+terraform show || echo "No hay recursos de Terraform"
+"""
               }
             } else {
-              echo "ℹ️ Acción de solo estado - no se realizan cambios en DigitalOcean."
+              // Usar método tradicional para VM estándar
+              echo "🚀 Usando método tradicional para VM estándar..."
+              
+              def commonEnv = [
+                "NAME=${env.VM_NAME}",
+                "REGION=${env.VM_REGION}",
+                "SIZE=${env.VM_SIZE}",
+                "IMAGE=${env.VM_IMAGE}",
+                "CLOUD_INIT_TEMPLATE=${env.CLOUD_INIT_TEMPLATE}"
+              ]
+
+              if (action == 'create') {
+                withEnv(commonEnv + ["VM_PASSWORD=${VM_PASSWORD}"]) {
+                  dir(env.INFRA_DIR) {
+                    sh '''
+                      set -e
+                      ./create-do-droplet.sh
+                    '''
+                  }
+                }
+              } else if (action == 'rebuild') {
+                withEnv(commonEnv + ["ALLOW_MISSING=1"]) {
+                  dir(env.INFRA_DIR) {
+                    sh '''
+                      set -e
+                      echo "🔁 Eliminando droplet existente (si aplica)..."
+                      ./delete-do-droplet.sh || true
+                    '''
+                  }
+                }
+                sleep(time: 10, unit: 'SECONDS')
+                withEnv(commonEnv + ["VM_PASSWORD=${VM_PASSWORD}"]) {
+                  dir(env.INFRA_DIR) {
+                    sh '''
+                      set -e
+                      echo "🚀 Creando droplet desde cero..."
+                      ./create-do-droplet.sh
+                    '''
+                  }
+                }
+              } else if (action == 'destroy') {
+                withEnv(commonEnv + ["ALLOW_MISSING=1"]) {
+                  dir(env.INFRA_DIR) {
+                    sh '''
+                      set -e
+                      ./delete-do-droplet.sh
+                    '''
+                  }
+                }
+              } else {
+                echo "ℹ️ Acción de solo estado - no se realizan cambios en DigitalOcean."
+              }
             }
           }
         }
@@ -172,15 +243,33 @@ pipeline {
           script {
             def ip = ""
             if (params.ACTION != 'destroy') {
-              ip = sh(
-                script: """
-                  set -e
-                  curl -sS -H "Authorization: Bearer ${DO_TOKEN}" "https://api.digitalocean.com/v2/droplets?per_page=200" \\
-                    | jq -r --arg NAME "${env.VM_NAME}" '.droplets[] | select(.name==\$NAME) | .networks.v4[] | select(.type=="public") | .ip_address' \\
-                    | head -n1
-                """,
-                returnStdout: true
-              ).trim()
+              if (params.VM_CONFIG == 'ecommerce_minikube') {
+                // Para Minikube, obtener IP desde Terraform
+                try {
+                  ip = sh(
+                    script: """
+                      set -e
+                      cd terraform/minikube-vm
+                      terraform output -raw droplet_ip 2>/dev/null || echo ""
+                    """,
+                    returnStdout: true
+                  ).trim()
+                } catch (Exception e) {
+                  echo "⚠️ No se pudo obtener IP desde Terraform: ${e.getMessage()}"
+                  ip = ""
+                }
+              } else {
+                // Para VM estándar, usar método tradicional
+                ip = sh(
+                  script: """
+                    set -e
+                    curl -sS -H "Authorization: Bearer ${DO_TOKEN}" "https://api.digitalocean.com/v2/droplets?per_page=200" \\
+                      | jq -r --arg NAME "${env.VM_NAME}" '.droplets[] | select(.name==\$NAME) | .networks.v4[] | select(.type=="public") | .ip_address' \\
+                      | head -n1
+                  """,
+                  returnStdout: true
+                ).trim()
+              }
             }
 
             if (ip) {
@@ -202,6 +291,7 @@ SIZE=${env.VM_SIZE}
 IMAGE=${env.VM_IMAGE}
 CLOUD_INIT_TEMPLATE=${env.CLOUD_INIT_TEMPLATE}
 COST=${env.VM_COST}
+METHOD=${params.VM_CONFIG == 'ecommerce_minikube' ? 'terraform' : 'traditional'}
 """
 
             def triggeredBy = env.BUILD_USER_ID ?: env.BUILD_USER ?: env.BUILD_TAG ?: 'jenkins'
@@ -215,6 +305,7 @@ BUILD_NUMBER=${env.BUILD_NUMBER}
 JOB_NAME=${env.JOB_NAME}
 TRIGGERED_BY=${triggeredBy}
 TIMESTAMP=${new Date().format('yyyy-MM-dd HH:mm:ss')}
+METHOD=${params.VM_CONFIG == 'ecommerce_minikube' ? 'terraform' : 'traditional'}
 """
 
             if (params.ARCHIVE_METADATA) {
@@ -225,7 +316,7 @@ TIMESTAMP=${new Date().format('yyyy-MM-dd HH:mm:ss')}
       }
     }
 
-    stage('Configure Minikube with Terraform + Ansible') {
+    stage('Configure Minikube with Ansible') {
       when {
         expression {
           params.VM_CONFIG == 'ecommerce_minikube' &&
@@ -235,8 +326,7 @@ TIMESTAMP=${new Date().format('yyyy-MM-dd HH:mm:ss')}
       }
       steps {
         withCredentials([
-          string(credentialsId: 'integration-vm-password', variable: 'VM_PASSWORD'),
-          string(credentialsId: 'digitalocean-token', variable: 'DO_TOKEN')
+          string(credentialsId: 'integration-vm-password', variable: 'VM_PASSWORD')
         ]) {
           script {
             def targetIp = env.DROPLET_IP
@@ -244,42 +334,16 @@ TIMESTAMP=${new Date().format('yyyy-MM-dd HH:mm:ss')}
               error "❌ No hay IP disponible para configurar Minikube en la VM."
             }
 
-            echo "🚀 Configurando Minikube con Terraform + Ansible en ${targetIp}..."
+            echo "🚀 Configurando Minikube con Ansible en ${targetIp}..."
 
-            // Crear terraform.tfvars dinámicamente
-            writeFile file: 'terraform/minikube-vm/terraform.tfvars', text: """do_token   = "${DO_TOKEN}"
-vm_name    = "${env.VM_NAME}"
-region     = "${env.VM_REGION}"
-size       = "${env.VM_SIZE}"
-vm_password = "${VM_PASSWORD}"
-"""
-
-            // Ejecutar el script de despliegue de Terraform + Ansible
+            // Esperar a que SSH esté disponible
             sh """
 set -e
 
-echo "🔧 Configurando Terraform para Minikube..."
-cd terraform/minikube-vm
-
-# Inicializar Terraform si es necesario
-if [ ! -d ".terraform" ]; then
-  echo "📦 Inicializando Terraform..."
-  terraform init
-fi
-
-# Aplicar configuración de Terraform
-echo "🚀 Aplicando configuración de Terraform..."
-terraform apply -auto-approve
-
-# Obtener IP de la VM creada
-VM_IP=\$(terraform output -raw droplet_ip)
-echo "🌐 VM IP: \$VM_IP"
-
-# Esperar a que SSH esté disponible
-echo "⏳ Esperando que SSH esté disponible..."
+echo "⏳ Esperando que SSH esté disponible en ${targetIp}..."
 for i in \$(seq 1 30); do
-  if sshpass -p "${VM_PASSWORD}" ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null jenkins@\$VM_IP "echo SSH ready" >/dev/null 2>&1; then
-    echo "✅ SSH disponible en \$VM_IP"
+  if sshpass -p "${VM_PASSWORD}" ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null jenkins@${targetIp} "echo SSH ready" >/dev/null 2>&1; then
+    echo "✅ SSH disponible en ${targetIp}"
     break
   fi
   echo "   reintentando (\$i/30)..."
@@ -288,12 +352,12 @@ done
 
 # Configurar con Ansible
 echo "🎭 Configurando con Ansible..."
-cd ../../ansible/minikube-vm
+cd ansible/minikube-vm
 
 # Crear inventario dinámico
 cat > inventory.ini << EOF
 [minikube_vm]
-\$VM_IP ansible_user=jenkins ansible_password=${VM_PASSWORD}
+${targetIp} ansible_user=jenkins ansible_password=${VM_PASSWORD}
 EOF
 
 # Configurar ansible.cfg
@@ -313,7 +377,7 @@ EOF
 echo "🚀 Ejecutando playbook de Ansible..."
 ansible-playbook -i inventory.ini playbook.yml
 
-echo "✅ Minikube configurado exitosamente con Terraform + Ansible"
+echo "✅ Minikube configurado exitosamente con Ansible"
 """
           }
         }
