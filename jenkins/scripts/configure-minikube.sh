@@ -23,10 +23,23 @@ for i in $(seq 1 30); do
   sleep 10
 done
 
-# Configurar Minikube
-echo "🚀 Configurando Minikube..."
+# Configurar Minikube y Google Cloud SDK
+echo "🚀 Configurando Minikube y Google Cloud SDK..."
 sshpass -e ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null jenkins@"${VM_IP}" << 'EOF'
 set -euo pipefail
+
+echo "📦 Instalando Google Cloud SDK..."
+if ! command -v gcloud &> /dev/null; then
+  echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | sudo tee -a /etc/apt/sources.list.d/google-cloud-sdk.list
+  curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key --keyring /usr/share/keyrings/cloud.google.gpg add -
+  sudo apt-get update
+  sudo apt-get install -y google-cloud-sdk google-cloud-sdk-gke-gcloud-auth-plugin
+  gcloud config set core/disable_usage_reporting true
+  gcloud config set component_manager/disable_update_check true
+  echo "✅ Google Cloud SDK instalado"
+else
+  echo "✅ Google Cloud SDK ya está instalado"
+fi
 
 echo "🔍 Verificando estado de Minikube..."
 if minikube status >/dev/null 2>&1; then
@@ -48,7 +61,7 @@ minikube service list || true
 echo "📋 Información del cluster:"
 minikube kubectl -- get all || true
 
-echo "✅ Minikube configurado exitosamente"
+echo "✅ Minikube y Google Cloud SDK configurados exitosamente"
 EOF
 
 echo "🎉 Configuración de Minikube completada en ${VM_IP}"
