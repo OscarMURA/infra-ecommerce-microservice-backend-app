@@ -49,30 +49,55 @@ else
 fi
 
 echo "🔧 Configurando Minikube..."
-minikube config set driver docker
-minikube config set memory 3072
-minikube config set cpus 2
-minikube config set disk-size 20g
+if command -v minikube &> /dev/null; then
+  minikube config set driver docker
+  minikube config set memory 3072
+  minikube config set cpus 2
+  minikube config set disk-size 20g
+  echo "✅ Configuración de Minikube completada"
+else
+  echo "⚠️  Minikube no está instalado aún"
+fi
 
 echo "🔍 Verificando estado de Minikube..."
-if minikube status >/dev/null 2>&1; then
+if command -v minikube &> /dev/null && minikube status >/dev/null 2>&1; then
   echo "✅ Minikube ya está ejecutándose"
 else
-  echo "🚀 Iniciando Minikube..."
-  minikube start --driver=docker --memory=3072 --cpus=2 --disk-size=20g
+  if command -v minikube &> /dev/null; then
+    echo "🚀 Iniciando Minikube..."
+    minikube start --driver=docker --memory=3072 --cpus=2 --disk-size=20g
+  else
+    echo "⚠️  Minikube no está instalado, saltando inicio"
+  fi
 fi
 
 echo "📊 Estado de Minikube:"
-minikube status
+if command -v minikube &> /dev/null; then
+  minikube status
+else
+  echo "⚠️  Minikube no está instalado"
+fi
 
 echo "🔧 Configurando kubectl..."
-minikube kubectl -- get nodes || true
+if command -v minikube &> /dev/null; then
+  minikube kubectl -- get nodes || true
+else
+  echo "⚠️  Minikube no está instalado, saltando configuración de kubectl"
+fi
 
 echo "🌐 Servicios disponibles:"
-minikube service list || true
+if command -v minikube &> /dev/null; then
+  minikube service list || true
+else
+  echo "⚠️  Minikube no está instalado"
+fi
 
 echo "📋 Información del cluster:"
-minikube kubectl -- get all || true
+if command -v minikube &> /dev/null; then
+  minikube kubectl -- get all || true
+else
+  echo "⚠️  Minikube no está instalado"
+fi
 
 echo "✅ Minikube configurado exitosamente"
 EOF
