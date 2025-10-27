@@ -19,36 +19,40 @@ pipeline {
     JENKINS_ENV_FILE = "jenkins-env.properties"
   }
 
-  script {
-    // Configuraciones predefinidas según el tipo de VM
-    def configs = [
-      'standard': [
-        size: 's-1vcpu-2gb',
-        cloudInitTemplate: 'cloud-init.yaml',
-        description: 'VM estándar para pruebas de integración'
-      ],
-      'ecommerce_minikube': [
-        size: 's-2vcpu-4gb',  // 4GB RAM, 2 CPUs como especificaste
-        cloudInitTemplate: 'cloud-init-minikube.yaml',
-        description: 'VM optimizada para Minikube con recursos adicionales'
-      ]
-    ]
-    
-    def selectedConfig = configs[params.VM_CONFIG]
-    if (!selectedConfig) {
-      error "❌ Configuración de VM no válida: ${params.VM_CONFIG}"
-    }
-    
-    // Usar el tamaño de la configuración seleccionada
-    env.FINAL_SIZE = selectedConfig.size
-    env.CLOUD_INIT_TEMPLATE = selectedConfig.cloudInitTemplate
-    
-    echo "🔧 Configuración seleccionada: ${params.VM_CONFIG}"
-    echo "📊 Tamaño de VM: ${env.FINAL_SIZE}"
-    echo "📄 Template cloud-init: ${env.CLOUD_INIT_TEMPLATE}"
-  }
-
   stages {
+    stage('Configure VM Settings') {
+      steps {
+        script {
+          // Configuraciones predefinidas según el tipo de VM
+          def configs = [
+            'standard': [
+              size: 's-1vcpu-2gb',
+              cloudInitTemplate: 'cloud-init.yaml',
+              description: 'VM estándar para pruebas de integración'
+            ],
+            'ecommerce_minikube': [
+              size: 's-2vcpu-4gb',  // 4GB RAM, 2 CPUs como especificaste
+              cloudInitTemplate: 'cloud-init-minikube.yaml',
+              description: 'VM optimizada para Minikube con recursos adicionales'
+            ]
+          ]
+          
+          def selectedConfig = configs[params.VM_CONFIG]
+          if (!selectedConfig) {
+            error "❌ Configuración de VM no válida: ${params.VM_CONFIG}"
+          }
+          
+          // Usar el tamaño de la configuración seleccionada
+          env.FINAL_SIZE = selectedConfig.size
+          env.CLOUD_INIT_TEMPLATE = selectedConfig.cloudInitTemplate
+          
+          echo "🔧 Configuración seleccionada: ${params.VM_CONFIG}"
+          echo "📊 Tamaño de VM: ${env.FINAL_SIZE}"
+          echo "📄 Template cloud-init: ${env.CLOUD_INIT_TEMPLATE}"
+        }
+      }
+    }
+
     stage('Checkout') {
       steps {
         checkout scm
@@ -56,7 +60,7 @@ pipeline {
           echo "📦 Workspace: ${env.WORKSPACE}"
           echo "➤ Acción: ${params.ACTION}"
           echo "➤ Configuración: ${params.VM_CONFIG}"
-          echo "➤ Droplet: ${params.VM_NAME} (${params.VM_REGION}, ${params.VM_SIZE}, ${params.VM_IMAGE})"
+          echo "➤ Droplet: ${params.VM_NAME} (${params.VM_REGION}, ${env.FINAL_SIZE}, ${params.VM_IMAGE})"
         }
       }
     }
