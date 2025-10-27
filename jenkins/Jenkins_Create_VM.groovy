@@ -251,12 +251,12 @@ export SSHPASS="\$VM_PASSWORD"
 
 echo "⏳ Esperando a que la VM acepte conexiones SSH..."
 READY=0
-for i in \$(seq 1 30); do
+for i in \$(seq 1 60); do
   if sshpass -e ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null jenkins@${targetIp} "echo VM ready" >/dev/null 2>&1; then
     READY=1
     break
   fi
-  echo "   reintentando (\$i/30)..."
+  echo "   reintentando (\$i/60)..."
   sleep 10
 done
 if [ "\$READY" -ne 1 ]; then
@@ -326,12 +326,12 @@ export SSHPASS="\$VM_PASSWORD"
 
 echo "⏳ Esperando a que la VM acepte conexiones SSH..."
 READY=0
-for i in \$(seq 1 30); do
+for i in \$(seq 1 60); do
   if sshpass -e ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null jenkins@${targetIp} "echo VM ready" >/dev/null 2>&1; then
     READY=1
     break
   fi
-  echo "   reintentando (\$i/30)..."
+  echo "   reintentando (\$i/60)..."
   sleep 10
 done
 if [ "\$READY" -ne 1 ]; then

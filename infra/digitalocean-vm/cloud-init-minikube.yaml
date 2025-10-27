@@ -97,7 +97,7 @@ runcmd:
   - install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
   - rm kubectl
 
-  # Instalar Minikube
+  # Instalar Minikube (versión optimizada)
   - curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
   - install minikube-linux-amd64 /usr/local/bin/minikube
   - rm minikube-linux-amd64
@@ -112,11 +112,8 @@ runcmd:
   - sudo -u jenkins bash -c 'minikube config set cpus 2'
   - sudo -u jenkins bash -c 'minikube config set disk-size 20g'
 
-  # Inicializar Minikube
-  - sudo -u jenkins bash -c 'minikube start --driver=docker --memory=3072 --cpus=2 --disk-size=20g'
-
-  # Configurar kubectl para usar el contexto de Minikube
-  - sudo -u jenkins bash -c 'minikube kubectl -- get pods' || true
+  # NO inicializar Minikube automáticamente - se hará después via SSH
+  # Esto reduce el tiempo de inicialización de cloud-init
 
   # Crear alias útiles para el usuario jenkins
   - sudo -u jenkins bash -c 'echo "alias k=\"minikube kubectl --\"" >> /home/jenkins/.bashrc'
@@ -167,4 +164,4 @@ EOF
   - chmod +x /home/jenkins/minikube-utils.sh
   - chown jenkins:jenkins /home/jenkins/minikube-utils.sh
 
-final_message: "Cloud-init finished. Minikube VM is ready with Docker, kubectl, and Minikube configured. Use 'minikube-utils.sh' for common operations."
+final_message: "Cloud-init finished. Minikube VM is ready with Docker, kubectl, and Minikube installed. Minikube will be initialized via SSH after VM is ready."
