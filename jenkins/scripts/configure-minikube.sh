@@ -23,10 +23,44 @@ for i in $(seq 1 30); do
   sleep 10
 done
 
-# Configurar Minikube y Google Cloud SDK
-echo "🚀 Configurando Minikube y Google Cloud SDK..."
+# Configurar Minikube y todas las dependencias
+echo "🚀 Instalando Docker, kubectl, Minikube y Google Cloud SDK..."
 sshpass -e ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null jenkins@"${VM_IP}" << 'EOF'
 set -euo pipefail
+
+echo "📦 Instalando Docker..."
+if ! command -v docker &> /dev/null; then
+  sudo install -m 0755 -d /etc/apt/keyrings
+  curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+  sudo chmod a+r /etc/apt/keyrings/docker.gpg
+  echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu jammy stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+  sudo apt-get update
+  sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+  sudo usermod -aG docker jenkins
+  echo "✅ Docker instalado"
+else
+  echo "✅ Docker ya está instalado"
+fi
+
+echo "📦 Instalando kubectl..."
+if ! command -v kubectl &> /dev/null; then
+  curl -LO "https://dl.k8s.io/release/v1.28.0/bin/linux/amd64/kubectl"
+  sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+  rm kubectl
+  echo "✅ kubectl instalado"
+else
+  echo "✅ kubectl ya está instalado"
+fi
+
+echo "📦 Instalando Minikube..."
+if ! command -v minikube &> /dev/null; then
+  curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
+  sudo install minikube-linux-amd64 /usr/local/bin/minikube
+  rm minikube-linux-amd64
+  echo "✅ Minikube instalado"
+else
+  echo "✅ Minikube ya está instalado"
+fi
 
 echo "📦 Instalando Google Cloud SDK..."
 if ! command -v gcloud &> /dev/null; then
@@ -40,6 +74,12 @@ if ! command -v gcloud &> /dev/null; then
 else
   echo "✅ Google Cloud SDK ya está instalado"
 fi
+
+echo "🔧 Configurando Minikube..."
+minikube config set driver docker
+minikube config set memory 3072
+minikube config set cpus 2
+minikube config set disk-size 20g
 
 echo "🔍 Verificando estado de Minikube..."
 if minikube status >/dev/null 2>&1; then
@@ -61,7 +101,7 @@ minikube service list || true
 echo "📋 Información del cluster:"
 minikube kubectl -- get all || true
 
-echo "✅ Minikube y Google Cloud SDK configurados exitosamente"
+echo "✅ Todas las herramientas configuradas exitosamente"
 EOF
 
 echo "🎉 Configuración de Minikube completada en ${VM_IP}"

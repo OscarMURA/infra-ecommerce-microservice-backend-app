@@ -59,56 +59,26 @@ write_files:
       fs.inotify.max_user_instances=8192
 
 runcmd:
-  # Configurar SSH
+  # Configurar SSH (solo lo esencial)
   - sed -i 's/^#\?PasswordAuthentication.*/PasswordAuthentication yes/' /etc/ssh/sshd_config
   - systemctl reload ssh || systemctl restart ssh
 
-  # Instalar Docker
-  - install -m 0755 -d /etc/apt/keyrings
-  - curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-  - chmod a+r /etc/apt/keyrings/docker.gpg
-  - bash -lc 'echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu jammy stable" > /etc/apt/sources.list.d/docker.list'
-
-  - apt-get update
-  - apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
-  - usermod -aG docker jenkins
-
-  # Configurar firewall para Minikube
+  # Configurar firewall básico
   - ufw allow 22/tcp
   - ufw allow 3000,8000,8080,8081,8082,8083,9411/tcp
   - ufw allow 8443/tcp  # Kubernetes API
   - ufw allow 30000:32767/tcp  # NodePort range
   - ufw --force enable
 
-  # Crear directorios necesarios
+  # Crear directorios básicos
   - mkdir -p /opt/ecommerce-app
   - chown -R jenkins:jenkins /opt/ecommerce-app
-
-  # Instalaciones básicas para Minikube (versión simplificada)
-  # Solo instalar lo esencial - el resto se hará via SSH
-  
-  # Instalar kubectl (versión simple)
-  - curl -LO "https://dl.k8s.io/release/v1.28.0/bin/linux/amd64/kubectl"
-  - install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
-  - rm kubectl
-
-  # Instalar Minikube (versión simple)
-  - curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
-  - install minikube-linux-amd64 /usr/local/bin/minikube
-  - rm minikube-linux-amd64
-
-  # Crear directorios básicos
   - sudo -u jenkins bash -c 'mkdir -p /home/jenkins/.minikube'
   - sudo -u jenkins bash -c 'mkdir -p /home/jenkins/.kube'
 
-  # Configuración básica de Minikube
-  - sudo -u jenkins bash -c 'minikube config set driver docker'
-  - sudo -u jenkins bash -c 'minikube config set memory 3072'
-  - sudo -u jenkins bash -c 'minikube config set cpus 2'
-  - sudo -u jenkins bash -c 'minikube config set disk-size 20g'
-
-  # NO instalar Google Cloud SDK ni inicializar Minikube aquí
-  # Todo se hará via SSH para acelerar cloud-init
+  # NO instalar Docker, kubectl, Minikube ni Google Cloud SDK aquí
+  # Todo se instalará via SSH para acelerar cloud-init
+  # Esto reduce el tiempo de cloud-init de 10+ minutos a ~1-2 minutos
 
   # Crear alias útiles para el usuario jenkins
   - sudo -u jenkins bash -c 'echo "alias k=\"minikube kubectl --\"" >> /home/jenkins/.bashrc'
@@ -159,4 +129,4 @@ EOF
   - chmod +x /home/jenkins/minikube-utils.sh
   - chown jenkins:jenkins /home/jenkins/minikube-utils.sh
 
-final_message: "Cloud-init finished. Minikube VM is ready with Docker, kubectl, and Minikube installed. Google Cloud SDK and Minikube initialization will be done via SSH."
+final_message: "Cloud-init finished. Minikube VM is ready with basic configuration. Docker, kubectl, Minikube, and Google Cloud SDK will be installed via SSH."
