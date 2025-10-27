@@ -28,7 +28,45 @@ echo "🚀 Instalando kubectl y Minikube (versión actualizada)..."
 sshpass -e ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null jenkins@"${VM_IP}" << 'EOF'
 set -euo pipefail
 
-echo "📦 Paso 1: Instalando kubectl..."
+echo "📦 Paso 1: Verificando Docker..."
+if ! command -v docker &> /dev/null; then
+  echo "⚠️  Docker no está instalado, instalando..."
+  echo "🔽 Actualizando paquetes..."
+  sudo apt-get update
+  
+  echo "🔽 Instalando Docker..."
+  sudo apt-get install -y docker.io docker-compose
+  sudo systemctl start docker
+  sudo systemctl enable docker
+  sudo usermod -aG docker jenkins
+  
+  echo "✅ Docker instalado exitosamente"
+  
+  # Verificar instalación
+  if command -v docker &> /dev/null; then
+    echo "✅ Verificación: Docker está disponible"
+    docker --version
+  else
+    echo "❌ Error: Docker no está disponible después de la instalación"
+    exit 1
+  fi
+else
+  echo "✅ Docker ya está instalado"
+  docker --version
+fi
+
+# Verificar permisos de Docker para el usuario jenkins
+echo "🔍 Verificando permisos de Docker..."
+if groups jenkins | grep -q docker; then
+  echo "✅ Usuario jenkins tiene permisos de Docker"
+else
+  echo "⚠️  Agregando usuario jenkins al grupo docker..."
+  sudo usermod -aG docker jenkins
+  echo "✅ Usuario jenkins agregado al grupo docker"
+fi
+
+echo ""
+echo "📦 Paso 2: Instalando kubectl..."
 if ! command -v kubectl &> /dev/null; then
   echo "🔽 Descargando kubectl..."
   curl -LO "https://dl.k8s.io/release/v1.28.0/bin/linux/amd64/kubectl"
@@ -50,7 +88,7 @@ else
 fi
 
 echo ""
-echo "📦 Paso 2: Instalando Minikube..."
+echo "📦 Paso 3: Instalando Minikube..."
 if ! command -v minikube &> /dev/null; then
   echo "🔽 Descargando Minikube..."
   curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
@@ -72,7 +110,7 @@ else
 fi
 
 echo ""
-echo "🔧 Paso 3: Configurando Minikube..."
+echo "🔧 Paso 4: Configurando Minikube..."
 if command -v minikube &> /dev/null; then
   echo "⚙️  Configurando driver Docker..."
   minikube config set driver docker
@@ -88,7 +126,7 @@ else
 fi
 
 echo ""
-echo "🔍 Paso 4: Verificando estado de Minikube..."
+echo "🔍 Paso 5: Verificando estado de Minikube..."
 if command -v minikube &> /dev/null && minikube status >/dev/null 2>&1; then
   echo "✅ Minikube ya está ejecutándose"
 else
@@ -102,7 +140,7 @@ else
 fi
 
 echo ""
-echo "📊 Paso 5: Mostrando estado final..."
+echo "📊 Paso 6: Mostrando estado final..."
 if command -v minikube &> /dev/null; then
   echo "📊 Estado de Minikube:"
   minikube status
