@@ -151,6 +151,12 @@ set -e
 echo "🔁 Reconstruyendo VM de Minikube con Terraform..."
 cd terraform/minikube-vm
 
+# Inicializar Terraform si es necesario
+if [ ! -d ".terraform" ]; then
+  echo "📦 Inicializando Terraform..."
+  terraform init
+fi
+
 # Destruir VM existente
 echo "🗑️ Destruyendo VM existente..."
 terraform destroy -auto-approve || true
@@ -169,6 +175,15 @@ echo "VM_IP=\$VM_IP" > ../../vm-info.properties
 set -e
 echo "🗑️ Destruyendo VM de Minikube con Terraform..."
 cd terraform/minikube-vm
+
+# Inicializar Terraform si es necesario
+if [ ! -d ".terraform" ]; then
+  echo "📦 Inicializando Terraform..."
+  terraform init
+fi
+
+# Destruir recursos
+echo "🗑️ Destruyendo recursos de Terraform..."
 terraform destroy -auto-approve
 """
               } else {
