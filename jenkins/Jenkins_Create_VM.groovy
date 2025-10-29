@@ -182,7 +182,41 @@ if [ ! -d ".terraform" ]; then
   terraform init
 fi
 
-# Destruir recursos
+# Verificar si hay estado de Terraform
+if [ ! -f "terraform.tfstate" ] || [ ! -s "terraform.tfstate" ]; then
+  echo "⚠️ No hay estado de Terraform. Intentando importar VM existente..."
+  
+  # Buscar la VM por nombre usando la API de DigitalOcean
+  VM_ID=\$(curl -sS -H "Authorization: Bearer ${DO_TOKEN}" "https://api.digitalocean.com/v2/droplets?per_page=200" \\
+    | jq -r --arg NAME "${env.VM_NAME}" '.droplets[] | select(.name==\$NAME) | .id' | head -n1)
+  
+  if [ -n "\$VM_ID" ] && [ "\$VM_ID" != "null" ]; then
+    echo "🔍 VM encontrada con ID: \$VM_ID"
+    echo "📥 Importando VM existente al estado de Terraform..."
+    
+    # Crear un estado temporal con la VM importada
+    terraform import digitalocean_droplet.minikube_vm \$VM_ID || {
+      echo "⚠️ No se pudo importar la VM. Intentando destruir directamente con API..."
+      
+      # Destruir directamente con la API de DigitalOcean
+      echo "🗑️ Destruyendo VM directamente con API de DigitalOcean..."
+      curl -X DELETE -H "Authorization: Bearer ${DO_TOKEN}" "https://api.digitalocean.com/v2/droplets/\$VM_ID"
+      
+      if [ \$? -eq 0 ]; then
+        echo "✅ VM destruida exitosamente con API de DigitalOcean"
+      else
+        echo "❌ Error al destruir VM con API de DigitalOcean"
+        exit 1
+      fi
+    }
+  else
+    echo "ℹ️ No se encontró VM con nombre '${env.VM_NAME}' en DigitalOcean"
+    echo "✅ No hay nada que destruir"
+    exit 0
+  fi
+fi
+
+# Destruir recursos con Terraform
 echo "🗑️ Destruyendo recursos de Terraform..."
 terraform destroy -auto-approve
 """
