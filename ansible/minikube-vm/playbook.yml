@@ -152,6 +152,66 @@
       debug:
         var: cluster_info.stdout_lines
 
+    # ---------------- Minikube baseline bootstrap ----------------
+    - name: Ensure kubectl context is minikube
+      shell: kubectl config use-context minikube
+      become_user: jenkins
+      args:
+        warn: false
+
+    - name: Ensure ecommerce namespace exists
+      shell: kubectl create namespace ecommerce --dry-run=client -o yaml | kubectl apply -f -
+      become_user: jenkins
+      args:
+        warn: false
+
+    - name: Ensure target directory for deployment artifacts exists
+      file:
+        path: /opt/ecommerce-app/minikube-deployment
+        state: directory
+        owner: jenkins
+        group: jenkins
+        mode: '0755'
+
+    - name: Copy minikube deployment artifacts (ConfigMap/Secrets)
+      copy:
+        src: "files/minikube-deployment/"
+        dest: "/opt/ecommerce-app/minikube-deployment/"
+        owner: jenkins
+        group: jenkins
+        mode: '0644'
+      notify: Apply baseline config
+
+    - name: Apply ConfigMap if missing
+      shell: |
+        if ! kubectl get configmap ecommerce-config -n ecommerce >/dev/null 2>&1; then
+          kubectl apply -f /opt/ecommerce-app/minikube-deployment/minikube-configmap.yaml
+        fi
+      become_user: jenkins
+      args:
+        warn: false
+
+    - name: Apply Secret if missing
+      shell: |
+        if ! kubectl get secret ecommerce-secrets -n ecommerce >/dev/null 2>&1; then
+          kubectl apply -f /opt/ecommerce-app/minikube-deployment/minikube-secrets.yaml
+        fi
+      become_user: jenkins
+      args:
+        warn: false
+
+    - name: Enable metrics-server addon (optional)
+      shell: minikube addons enable metrics-server || true
+      become_user: jenkins
+      args:
+        warn: false
+
+    - name: Enable ingress addon (optional)
+      shell: minikube addons enable ingress || true
+      become_user: jenkins
+      args:
+        warn: false
+
     - name: Clean up temporary files
       file:
         path: "{{ item }}"
@@ -159,3 +219,12 @@
       loop:
         - /tmp/kubectl
         - /tmp/minikube
+
+  handlers:
+    - name: Apply baseline config
+      become: yes
+      become_user: jenkins
+      shell: |
+        set -e
+        kubectl apply -f /opt/ecommerce-app/minikube-deployment/minikube-configmap.yaml || true
+        kubectl apply -f /opt/ecommerce-app/minikube-deployment/minikube-secrets.yaml || true
