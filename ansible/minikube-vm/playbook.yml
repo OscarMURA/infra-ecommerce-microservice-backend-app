@@ -134,6 +134,16 @@
         minikube start --driver=docker --memory={{ minikube_memory }} --cpus={{ minikube_cpus }} --disk-size={{ minikube_disk_size }}
       become_user: jenkins
 
+    - name: Asegurar que el usuario jenkins tiene la config de Minikube y kubectl
+      become: yes
+      shell: |
+        mkdir -p /home/jenkins/.kube /home/jenkins/.minikube
+        if [ -d /root/.kube ]; then cp -r /root/.kube/* /home/jenkins/.kube/ 2>/dev/null || true; fi
+        if [ -d /root/.minikube ]; then cp -r /root/.minikube/* /home/jenkins/.minikube/ 2>/dev/null || true; fi
+        chown -R jenkins:jenkins /home/jenkins/.kube /home/jenkins/.minikube
+      args:
+        warn: false
+
     - name: Verify Minikube status
       shell: minikube status
       become_user: jenkins
