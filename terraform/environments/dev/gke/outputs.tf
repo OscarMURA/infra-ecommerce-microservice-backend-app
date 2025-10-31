@@ -55,3 +55,21 @@ output "kubeconfig_command" {
   description = "Comando para configurar kubectl"
   value       = module.gke_cluster.kubeconfig_command
 }
+
+output "staging_namespace" {
+  description = "Namespace de staging creado en el cluster"
+  value       = "staging"
+}
+
+output "prod_namespace" {
+  description = "Namespace de producción creado en el cluster"
+  value       = "prod"
+}
+
+output "namespaces_created" {
+  description = "Lista de namespaces creados en el cluster"
+  value = [
+    "staging",
+    "prod"
+  ]
+}

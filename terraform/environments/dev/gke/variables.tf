@@ -100,7 +100,7 @@ variable "master_authorized_networks" {
 variable "machine_type" {
   description = "Tipo de máquina"
   type        = string
-  default     = "e2-medium"
+  default     = "e2-standard-4"
 }
 
 variable "disk_size_gb" {
@@ -112,7 +112,7 @@ variable "disk_size_gb" {
 variable "disk_type" {
   description = "Tipo de disco"
   type        = string
-  default     = "pd-balanced"
+  default     = "pd-ssd"
 }
 
 variable "image_type" {
@@ -136,13 +136,13 @@ variable "node_count_per_zone" {
 variable "min_node_count" {
   description = "Mínimo de nodos"
   type        = number
-  default     = 1
+  default     = 2
 }
 
 variable "max_node_count" {
   description = "Máximo de nodos"
   type        = number
-  default     = 3
+  default     = 4
 }
 
 variable "auto_repair" {

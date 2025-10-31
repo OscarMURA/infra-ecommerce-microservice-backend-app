@@ -8,6 +8,14 @@ terraform {
       source  = "hashicorp/google"
       version = "~> 5.0"
     }
+    kubernetes = {
+      source  = "hashicorp/kubernetes"
+      version = "~> 2.23"
+    }
+    null = {
+      source  = "hashicorp/null"
+      version = "~> 3.2"
+    }
   }
 }
 
@@ -103,4 +111,76 @@ module "gke_cluster" {
   enable_binary_authorization   = var.enable_binary_authorization
   enable_secure_boot            = var.enable_secure_boot
   enable_integrity_monitoring   = var.enable_integrity_monitoring
+}
+
+# Data source para obtener información del cluster después de crearlo
+data "google_container_cluster" "primary" {
+  name     = module.gke_cluster.cluster_name
+  location = module.gke_cluster.cluster_location
+  project  = var.project_id
+
+  depends_on = [module.gke_cluster]
+}
+
+# Data source para obtener el access token de Google
+data "google_client_config" "default" {
+  depends_on = [module.gke_cluster]
+}
+
+# Generar kubeconfig usando local-exec y luego usar el provider de Kubernetes
+resource "null_resource" "configure_kubectl" {
+  triggers = {
+    cluster_name     = module.gke_cluster.cluster_name
+    cluster_location = module.gke_cluster.cluster_location
+    project_id       = var.project_id
+  }
+
+  provisioner "local-exec" {
+    command = <<-EOT
+      # Intentar obtener credenciales como cluster regional
+      gcloud container clusters get-credentials ${module.gke_cluster.cluster_name} \
+        --region ${module.gke_cluster.cluster_location} \
+        --project ${var.project_id} 2>/dev/null || \
+      # Si falla, intentar como cluster zonal
+      gcloud container clusters get-credentials ${module.gke_cluster.cluster_name} \
+        --zone ${module.gke_cluster.cluster_location} \
+        --project ${var.project_id}
+    EOT
+  }
+
+  depends_on = [module.gke_cluster, data.google_container_cluster.primary]
+}
+
+# Namespace para staging
+resource "null_resource" "create_staging_namespace" {
+  triggers = {
+    cluster_name = module.gke_cluster.cluster_name
+    depends_id    = null_resource.configure_kubectl.id
+  }
+
+  provisioner "local-exec" {
+    command = <<-EOT
+      kubectl create namespace staging --dry-run=client -o yaml | kubectl apply -f -
+      kubectl label namespace staging environment=staging terraform=true app=ecommerce --overwrite
+    EOT
+  }
+
+  depends_on = [null_resource.configure_kubectl]
+}
+
+# Namespace para prod
+resource "null_resource" "create_prod_namespace" {
+  triggers = {
+    cluster_name = module.gke_cluster.cluster_name
+    depends_id   = null_resource.configure_kubectl.id
+  }
+
+  provisioner "local-exec" {
+    command = <<-EOT
+      kubectl create namespace prod --dry-run=client -o yaml | kubectl apply -f -
+      kubectl label namespace prod environment=production terraform=true app=ecommerce --overwrite
+    EOT
+  }
+
+  depends_on = [null_resource.configure_kubectl]
 }
