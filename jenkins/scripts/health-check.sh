@@ -146,6 +146,31 @@ else
     checks_failed+=("API Server")
 fi
 
+# 1.5. Crear/Verificar namespaces staging y prod (solo para dev)
+if [ "$ENVIRONMENT" == "dev" ]; then
+    log_info "1.5. Verificando/Creando namespaces staging y prod..."
+    
+    # Crear namespace staging
+    if kubectl get namespace staging &>/dev/null; then
+        log_success "Namespace 'staging' ya existe"
+    else
+        kubectl create namespace staging
+        kubectl label namespace staging environment=staging terraform=true app=ecommerce
+        log_success "Namespace 'staging' creado"
+    fi
+    
+    # Crear namespace prod
+    if kubectl get namespace prod &>/dev/null; then
+        log_success "Namespace 'prod' ya existe"
+    else
+        kubectl create namespace prod
+        kubectl label namespace prod environment=production terraform=true app=ecommerce
+        log_success "Namespace 'prod' creado"
+    fi
+    
+    checks_passed+=("Namespaces")
+fi
+
 # 2. Verificar DNS (CoreDNS/kube-dns/Cilium)
 log_info "2. Verificando DNS..."
 if [ "$PROVIDER" == "gke" ]; then

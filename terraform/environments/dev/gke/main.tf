@@ -127,7 +127,7 @@ data "google_client_config" "default" {
   depends_on = [module.gke_cluster]
 }
 
-# Generar kubeconfig usando local-exec y luego usar el provider de Kubernetes
+# Generar kubeconfig usando local-exec con PATH configurado
 resource "null_resource" "configure_kubectl" {
   triggers = {
     cluster_name     = module.gke_cluster.cluster_name
@@ -137,6 +137,9 @@ resource "null_resource" "configure_kubectl" {
 
   provisioner "local-exec" {
     command = <<-EOT
+      # Configurar PATH para encontrar gcloud y kubectl
+      export PATH=/usr/local/bin:/usr/bin:/bin:/usr/local/google-cloud-sdk/bin:$PATH
+      
       # Intentar obtener credenciales como cluster regional
       gcloud container clusters get-credentials ${module.gke_cluster.cluster_name} \
         --region ${module.gke_cluster.cluster_location} \
@@ -145,6 +148,8 @@ resource "null_resource" "configure_kubectl" {
       gcloud container clusters get-credentials ${module.gke_cluster.cluster_name} \
         --zone ${module.gke_cluster.cluster_location} \
         --project ${var.project_id}
+      
+      echo "✅ Kubeconfig configurado correctamente"
     EOT
   }
 
@@ -160,8 +165,13 @@ resource "null_resource" "create_staging_namespace" {
 
   provisioner "local-exec" {
     command = <<-EOT
+      # Configurar PATH para encontrar kubectl
+      export PATH=/usr/local/bin:/usr/bin:/bin:/usr/local/google-cloud-sdk/bin:$PATH
+      
       kubectl create namespace staging --dry-run=client -o yaml | kubectl apply -f -
       kubectl label namespace staging environment=staging terraform=true app=ecommerce --overwrite
+      
+      echo "✅ Namespace 'staging' creado correctamente"
     EOT
   }
 
@@ -177,8 +187,13 @@ resource "null_resource" "create_prod_namespace" {
 
   provisioner "local-exec" {
     command = <<-EOT
+      # Configurar PATH para encontrar kubectl
+      export PATH=/usr/local/bin:/usr/bin:/bin:/usr/local/google-cloud-sdk/bin:$PATH
+      
       kubectl create namespace prod --dry-run=client -o yaml | kubectl apply -f -
       kubectl label namespace prod environment=production terraform=true app=ecommerce --overwrite
+      
+      echo "✅ Namespace 'prod' creado correctamente"
     EOT
   }
 
