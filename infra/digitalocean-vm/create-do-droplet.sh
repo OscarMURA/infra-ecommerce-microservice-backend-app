@@ -7,11 +7,11 @@ set -euo pipefail
 #  - env VM_PASSWORD (password for the jenkins user)
 #  - curl, jq
 # Usage:
-#   REGION=nyc3 SIZE=s-1vcpu-2gb IMAGE=ubuntu-22-04-x64 NAME=ecommerce-integration-runner \
+#   REGION=nyc3 SIZE=s-2vcpu-4gb IMAGE=ubuntu-22-04-x64 NAME=ecommerce-integration-runner \
 #   VM_PASSWORD='P@ssw0rd!' DO_TOKEN=... ./create-do-droplet.sh
 
 REGION=${REGION:-"nyc3"}
-SIZE=${SIZE:-"s-1vcpu-2gb"}
+SIZE=${SIZE:-"s-2vcpu-4gb"}
 IMAGE=${IMAGE:-"ubuntu-22-04-x64"}
 NAME=${NAME:-"ecommerce-integration-runner"}
 SSH_KEYS_JSON=${SSH_KEYS_JSON:-"[]"}  # optional: JSON array of SSH key IDs to attach

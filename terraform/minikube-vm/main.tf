@@ -30,7 +30,7 @@ variable "region" {
 variable "size" {
   description = "Droplet size"
   type        = string
-  default     = "s-2vcpu-4gb"  # 4GB RAM, 2 CPUs for Minikube
+  default     = "s-4vcpu-8gb"  # 8GB RAM, 4 CPUs for Minikube
 }
 
 variable "vm_password" {

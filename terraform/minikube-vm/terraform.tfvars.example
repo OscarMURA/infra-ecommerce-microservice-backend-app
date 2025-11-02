@@ -4,5 +4,5 @@
 do_token   = "your_digitalocean_token_here"
 vm_name    = "ecommerce-minikube-dev"
 region     = "nyc3"
-size       = "s-2vcpu-4gb"
+size       = "s-4vcpu-8gb"
 vm_password = "your_vm_password_here"

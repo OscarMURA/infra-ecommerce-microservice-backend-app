@@ -23,21 +23,21 @@ pipeline {
           def configs = [
             'standard': [
               name: 'ecommerce-integration-runner',
-              size: 's-1vcpu-2gb',
+              size: 's-2vcpu-4gb',
               region: 'nyc3',
               image: 'ubuntu-22-04-x64',
               cloudInitTemplate: 'cloud-init.yaml',
               description: 'VM estándar para pruebas de integración',
-              cost: '~$12/mes'
+              cost: '~$24/mes'
             ],
             'ecommerce_minikube': [
               name: 'ecommerce-minikube-dev',
-              size: 's-2vcpu-4gb',  // 4GB RAM, 2 CPUs como especificaste
+              size: 's-4vcpu-8gb',  // 8GB RAM, 4 CPUs para Minikube
               region: 'nyc3',
               image: 'ubuntu-22-04-x64',
               cloudInitTemplate: 'cloud-init-minikube.yaml',
               description: 'VM optimizada para Minikube con Terraform + Ansible (sin conflictos de cloud-init)',
-              cost: '~$24/mes'
+              cost: '~$48/mes'
             ]
           ]
           

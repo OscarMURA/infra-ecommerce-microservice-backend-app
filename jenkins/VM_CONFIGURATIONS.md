@@ -7,8 +7,8 @@ El pipeline `Jenkins_Create_VM` ahora soporta múltiples configuraciones predefi
 ## 🔧 Configuraciones Disponibles
 
 ### 1. **standard** (Configuración por defecto)
-- **Tamaño**: `s-1vcpu-2gb` (1 CPU, 2GB RAM)
-- **Costo**: ~$12/mes
+- **Tamaño**: `s-2vcpu-4gb` (2 CPU, 4GB RAM)
+- **Costo**: ~$24/mes
 - **Uso**: Pruebas de integración básicas
 - **Herramientas incluidas**:
   - Docker + Docker Compose
@@ -18,8 +18,8 @@ El pipeline `Jenkins_Create_VM` ahora soporta múltiples configuraciones predefi
   - Python 3
 
 ### 2. **ecommerce_minikube** (Nueva configuración)
-- **Tamaño**: `s-2vcpu-4gb` (2 CPUs, 4GB RAM)
-- **Costo**: ~$24/mes
+- **Tamaño**: `s-4vcpu-8gb` (4 CPUs, 8GB RAM)
+- **Costo**: ~$48/mes
 - **Uso**: Desarrollo y pruebas con Kubernetes local
 - **Herramientas incluidas**:
   - Todo lo de la configuración `standard`
@@ -31,15 +31,15 @@ El pipeline `Jenkins_Create_VM` ahora soporta múltiples configuraciones predefi
 ## 🚀 Características de la VM Minikube
 
 ### Recursos Optimizados
-- **RAM total**: 4GB
-- **RAM para Minikube**: 3GB (dejando 1GB para el sistema)
-- **CPUs**: 2 cores completos
+- **RAM total**: 8GB
+- **RAM para Minikube**: 6GB (dejando 2GB para el sistema)
+- **CPUs**: 4 cores completos
 - **Disco**: 80GB SSD (20GB asignados a Minikube)
 
 ### Configuración de Minikube
 ```bash
 # Configuración automática
-minikube start --driver=docker --memory=3072 --cpus=2 --disk-size=20g
+minikube start --driver=docker --memory=6144 --cpus=4 --disk-size=20g
 ```
 
 ### Utilidades Incluidas
@@ -61,9 +61,9 @@ minikube start --driver=docker --memory=3072 --cpus=2 --disk-size=20g
 
 | Característica | standard | ecommerce_minikube |
 |----------------|----------|-------------------|
-| **CPU** | 1 core | 2 cores |
-| **RAM** | 2GB | 4GB |
-| **Costo/mes** | ~$12 | ~$24 |
+| **CPU** | 2 cores | 4 cores |
+| **RAM** | 4GB | 8GB |
+| **Costo/mes** | ~$24 | ~$48 |
 | **Docker** | ✅ | ✅ |
 | **Minikube** | ❌ | ✅ |
 | **kubectl** | ❌ | ✅ |
@@ -123,7 +123,7 @@ VM_NAME = 'ecommerce-minikube-dev'
 
 1. **Costo**: La configuración Minikube cuesta el doble que la estándar
 2. **Tiempo de creación**: La VM Minikube toma más tiempo en inicializarse
-3. **Recursos**: Minikube necesita al menos 2GB de RAM para funcionar correctamente
+3. **Recursos**: Minikube está configurado con 6GB de RAM y 4 CPUs para mejor rendimiento
 4. **Acceso**: Ambas VMs son accesibles desde el Jenkins Server usando SSH
 5. **Persistencia**: Los datos de Minikube se mantienen entre reinicios de la VM
 
@@ -133,7 +133,7 @@ VM_NAME = 'ecommerce-minikube-dev'
 ```bash
 # En la VM, ejecutar:
 minikube delete
-minikube start --driver=docker --memory=3072 --cpus=2
+minikube start --driver=docker --memory=6144 --cpus=4
 ```
 
 ### Si hay problemas de memoria:
