@@ -23,12 +23,12 @@ pipeline {
           def configs = [
             'standard': [
               name: 'ecommerce-integration-runner',
-              size: 's-2vcpu-4gb',
+              size: 's-4vcpu-8gb',
               region: 'nyc3',
               image: 'ubuntu-22-04-x64',
               cloudInitTemplate: 'cloud-init.yaml',
               description: 'VM estándar para pruebas de integración',
-              cost: '~$24/mes'
+              cost: '~$48/mes'
             ],
             'ecommerce_minikube': [
               name: 'ecommerce-minikube-dev',
