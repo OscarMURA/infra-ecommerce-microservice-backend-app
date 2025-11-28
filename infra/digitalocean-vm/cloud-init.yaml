@@ -66,4 +66,10 @@ runcmd:
   - sudo -u jenkins gcloud config set core/disable_usage_reporting true
   - sudo -u jenkins gcloud config set component_manager/disable_update_check true
 
-final_message: "Cloud-init finished. Host is ready for ecommerce integration jobs with Docker and gcloud."
+  # Instalar Trivy (escáner de vulnerabilidades)
+  - wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | gpg --dearmor | tee /usr/share/keyrings/trivy.gpg > /dev/null
+  - echo "deb [signed-by=/usr/share/keyrings/trivy.gpg] https://aquasecurity.github.io/trivy-repo/deb generic main" | tee -a /etc/apt/sources.list.d/trivy.list
+  - apt-get update
+  - apt-get install -y trivy
+
+final_message: "Cloud-init finished. Host is ready for ecommerce integration jobs with Docker, gcloud, and Trivy."
