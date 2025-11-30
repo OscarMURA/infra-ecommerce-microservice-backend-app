@@ -1,0 +1,94 @@
+# AlertManager Configuration
+# Gestión centralizada de alertas para E-Commerce Microservices
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: alertmanager-config
+  namespace: monitoring
+  labels:
+    app: alertmanager
+    component: monitoring
+data:
+  alertmanager.yml: |
+    global:
+      resolve_timeout: 5m
+      # Configurar SMTP para notificaciones por email (opcional)
+      # smtp_smarthost: 'smtp.gmail.com:587'
+      # smtp_from: 'alertmanager@ecommerce.com'
+      # smtp_auth_username: 'your-email@gmail.com'
+      # smtp_auth_password: 'your-app-password'
+    
+    # Plantillas personalizadas
+    templates:
+      - '/etc/alertmanager/templates/*.tmpl'
+    
+    # Configuración de rutas de alertas
+    route:
+      # Agrupar alertas por nombre y namespace
+      group_by: ['alertname', 'namespace', 'service']
+      # Esperar 30s para agrupar alertas similares
+      group_wait: 30s
+      # Intervalo entre notificaciones del mismo grupo
+      group_interval: 5m
+      # No repetir la misma alerta antes de 4h
+      repeat_interval: 4h
+      # Receptor por defecto
+      receiver: 'default-receiver'
+      
+      # Rutas específicas por severidad
+      routes:
+        # Alertas críticas - notificación inmediata
+        - match:
+            severity: critical
+          receiver: 'critical-receiver'
+          group_wait: 10s
+          repeat_interval: 1h
+        
+        # Alertas de warning - agrupadas
+        - match:
+            severity: warning
+          receiver: 'warning-receiver'
+          group_wait: 1m
+          repeat_interval: 4h
+    
+    # Configuración de receptores
+    receivers:
+      # Receptor por defecto (webhook local para demo)
+      - name: 'default-receiver'
+        webhook_configs:
+          - url: 'http://localhost:5001/webhook'
+            send_resolved: true
+      
+      # Receptor para alertas críticas
+      - name: 'critical-receiver'
+        webhook_configs:
+          - url: 'http://localhost:5001/webhook/critical'
+            send_resolved: true
+        # Descomentar para Slack
+        # slack_configs:
+        #   - api_url: 'https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK'
+        #     channel: '#alerts-critical'
+        #     title: '🚨 CRITICAL: {{ .GroupLabels.alertname }}'
+        #     text: '{{ range .Alerts }}{{ .Annotations.description }}{{ end }}'
+      
+      # Receptor para warnings
+      - name: 'warning-receiver'
+        webhook_configs:
+          - url: 'http://localhost:5001/webhook/warning'
+            send_resolved: true
+    
+    # Reglas de inhibición (evitar alertas redundantes)
+    inhibit_rules:
+      # Si un servicio está caído, no enviar alertas de latencia
+      - source_match:
+          alertname: 'ServiceDown'
+        target_match:
+          alertname: 'HighLatency'
+        equal: ['namespace', 'service']
+      
+      # Si el cluster tiene problemas, no enviar alertas individuales de pods
+      - source_match:
+          severity: 'critical'
+        target_match:
+          severity: 'warning'
+        equal: ['namespace']
