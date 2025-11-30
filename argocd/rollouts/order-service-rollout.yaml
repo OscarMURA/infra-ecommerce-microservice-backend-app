@@ -1,0 +1,171 @@
+# Rollout con análisis de métricas para rollback automático
+# Usa Argo Rollouts para Progressive Delivery
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: order-service
+  namespace: prod
+  labels:
+    app: order-service
+spec:
+  replicas: 3
+  revisionHistoryLimit: 5
+  selector:
+    matchLabels:
+      app: order-service
+  
+  template:
+    metadata:
+      labels:
+        app: order-service
+    spec:
+      containers:
+        - name: order-service
+          image: oscarmurap/order-service:latest
+          ports:
+            - containerPort: 8300
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8300
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8300
+            initialDelaySeconds: 60
+            periodSeconds: 15
+  
+  # Estrategia Canary con análisis de métricas
+  strategy:
+    canary:
+      # Pasos del canary deployment
+      steps:
+        - setWeight: 10        # 10% del tráfico al canary
+        - pause: {duration: 2m} # Esperar 2 minutos
+        - analysis:
+            templates:
+              - templateName: success-rate-analysis
+            args:
+              - name: service-name
+                value: order-service
+        - setWeight: 30        # 30% del tráfico
+        - pause: {duration: 2m}
+        - setWeight: 50        # 50% del tráfico
+        - pause: {duration: 2m}
+        - analysis:
+            templates:
+              - templateName: success-rate-analysis
+        - setWeight: 80        # 80% del tráfico
+        - pause: {duration: 1m}
+        # Si todo está bien, se completa al 100%
+      
+      # Configuración del canary
+      canaryService: order-service-canary
+      stableService: order-service-stable
+      
+      # Análisis de métricas para rollback automático
+      analysis:
+        successfulRunHistoryLimit: 3
+        unsuccessfulRunHistoryLimit: 3
+      
+      # Anti-affinity para distribuir pods
+      antiAffinity:
+        preferredDuringSchedulingIgnoredDuringExecution:
+          weight: 100
+
+---
+# AnalysisTemplate para verificar tasa de éxito
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: success-rate-analysis
+  namespace: prod
+spec:
+  args:
+    - name: service-name
+  metrics:
+    - name: success-rate
+      interval: 30s
+      # Número de mediciones exitosas requeridas
+      successCondition: result[0] >= 0.95
+      failureLimit: 3
+      provider:
+        prometheus:
+          address: http://prometheus-server.monitoring.svc.cluster.local:80
+          query: |
+            sum(rate(http_server_requests_seconds_count{
+              application="{{args.service-name}}",
+              status=~"2.."
+            }[5m])) /
+            sum(rate(http_server_requests_seconds_count{
+              application="{{args.service-name}}"
+            }[5m]))
+    
+    - name: error-rate
+      interval: 30s
+      # Falla si hay más de 5% de errores
+      successCondition: result[0] <= 0.05
+      failureLimit: 2
+      provider:
+        prometheus:
+          address: http://prometheus-server.monitoring.svc.cluster.local:80
+          query: |
+            sum(rate(http_server_requests_seconds_count{
+              application="{{args.service-name}}",
+              status=~"5.."
+            }[5m])) /
+            sum(rate(http_server_requests_seconds_count{
+              application="{{args.service-name}}"
+            }[5m]))
+    
+    - name: latency-p99
+      interval: 30s
+      # P99 latencia debe ser < 500ms
+      successCondition: result[0] < 500
+      failureLimit: 3
+      provider:
+        prometheus:
+          address: http://prometheus-server.monitoring.svc.cluster.local:80
+          query: |
+            histogram_quantile(0.99,
+              sum(rate(http_server_requests_seconds_bucket{
+                application="{{args.service-name}}"
+              }[5m])) by (le)
+            ) * 1000
+
+---
+# Services para Canary
+apiVersion: v1
+kind: Service
+metadata:
+  name: order-service-canary
+  namespace: prod
+spec:
+  ports:
+    - port: 8300
+      targetPort: 8300
+  selector:
+    app: order-service
+    # El Rollout controller agregará el selector correcto
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: order-service-stable
+  namespace: prod
+spec:
+  ports:
+    - port: 8300
+      targetPort: 8300
+  selector:
+    app: order-service

@@ -1,0 +1,140 @@
+# ConfigMap para notificaciones de ArgoCD
+# Configura notificaciones por Slack, Email, Webhook
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-notifications-cm
+  namespace: argocd
+data:
+  # Configuración del servicio de notificaciones
+  service.slack: |
+    token: $slack-token
+    
+  service.webhook.jenkins: |
+    url: http://jenkins.jenkins.svc.cluster.local:8080/generic-webhook-trigger/invoke
+    headers:
+      - name: Content-Type
+        value: application/json
+  
+  # Templates de mensajes
+  template.app-deployed: |
+    message: |
+      ✅ *{{.app.metadata.name}}* desplegado exitosamente!
+      - Proyecto: {{.app.spec.project}}
+      - Revisión: {{.app.status.sync.revision}}
+      - Destino: {{.app.spec.destination.namespace}}
+      - Estado: {{.app.status.health.status}}
+    slack:
+      attachments: |
+        [{
+          "color": "#18be52",
+          "title": "Deployment Exitoso",
+          "title_link": "{{.context.argocdUrl}}/applications/{{.app.metadata.name}}",
+          "fields": [
+            {"title": "Application", "value": "{{.app.metadata.name}}", "short": true},
+            {"title": "Namespace", "value": "{{.app.spec.destination.namespace}}", "short": true},
+            {"title": "Revision", "value": "{{.app.status.sync.revision | truncate 7 }}", "short": true},
+            {"title": "Health", "value": "{{.app.status.health.status}}", "short": true}
+          ]
+        }]
+  
+  template.app-sync-failed: |
+    message: |
+      ❌ *{{.app.metadata.name}}* falló al sincronizar!
+      - Error: {{.app.status.operationState.message}}
+      - Revisión: {{.app.status.sync.revision}}
+    slack:
+      attachments: |
+        [{
+          "color": "#E96D76",
+          "title": "Sync Failed",
+          "title_link": "{{.context.argocdUrl}}/applications/{{.app.metadata.name}}",
+          "fields": [
+            {"title": "Application", "value": "{{.app.metadata.name}}", "short": true},
+            {"title": "Error", "value": "{{.app.status.operationState.message}}", "short": false}
+          ]
+        }]
+  
+  template.app-health-degraded: |
+    message: |
+      ⚠️ *{{.app.metadata.name}}* está degradado!
+      - Estado de salud: {{.app.status.health.status}}
+      - Namespace: {{.app.spec.destination.namespace}}
+    slack:
+      attachments: |
+        [{
+          "color": "#f4c030",
+          "title": "Health Degraded",
+          "title_link": "{{.context.argocdUrl}}/applications/{{.app.metadata.name}}",
+          "fields": [
+            {"title": "Application", "value": "{{.app.metadata.name}}", "short": true},
+            {"title": "Health Status", "value": "{{.app.status.health.status}}", "short": true}
+          ]
+        }]
+
+  template.app-rollback: |
+    message: |
+      🔄 *{{.app.metadata.name}}* rollback ejecutado!
+      - Revisión anterior: {{.app.status.history | last | default dict | get "revision" "N/A"}}
+      - Nueva revisión: {{.app.status.sync.revision}}
+    slack:
+      attachments: |
+        [{
+          "color": "#0077FF",
+          "title": "Rollback Ejecutado",
+          "title_link": "{{.context.argocdUrl}}/applications/{{.app.metadata.name}}",
+          "fields": [
+            {"title": "Application", "value": "{{.app.metadata.name}}", "short": true},
+            {"title": "Revision", "value": "{{.app.status.sync.revision | truncate 7}}", "short": true}
+          ]
+        }]
+
+  # Triggers - Cuándo enviar notificaciones
+  trigger.on-deployed: |
+    - description: Application deployed
+      send:
+        - app-deployed
+      when: app.status.operationState.phase in ['Succeeded'] and app.status.health.status == 'Healthy'
+  
+  trigger.on-sync-failed: |
+    - description: Sync failed
+      send:
+        - app-sync-failed
+      when: app.status.operationState.phase in ['Error', 'Failed']
+  
+  trigger.on-health-degraded: |
+    - description: Health degraded
+      send:
+        - app-health-degraded
+      when: app.status.health.status == 'Degraded'
+
+  trigger.on-sync-status-unknown: |
+    - description: Sync status unknown
+      send:
+        - app-sync-failed
+      when: app.status.sync.status == 'Unknown'
+
+  # Subscripciones por defecto
+  subscriptions: |
+    - recipients:
+        - slack:deployments
+      triggers:
+        - on-deployed
+        - on-sync-failed
+    - recipients:
+        - slack:alerts
+      triggers:
+        - on-health-degraded
+
+---
+# Secret para tokens de notificación
+apiVersion: v1
+kind: Secret
+metadata:
+  name: argocd-notifications-secret
+  namespace: argocd
+type: Opaque
+stringData:
+  # Reemplazar con tokens reales
+  slack-token: "xoxb-your-slack-bot-token"
+  # webhook-url: "https://hooks.slack.com/services/xxx/xxx/xxx"

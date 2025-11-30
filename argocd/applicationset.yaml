@@ -1,0 +1,90 @@
+# ApplicationSet para desplegar todos los microservicios automáticamente
+# Usa un generador de lista para crear una Application por cada servicio
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: ecommerce-services
+  namespace: argocd
+spec:
+  generators:
+    # Generador de lista con todos los microservicios
+    - list:
+        elements:
+          - name: user-service
+            repo: https://github.com/Ecommerce-Microservice-Lab/user-service.git
+            path: k8s
+            port: "8700"
+          - name: product-service
+            repo: https://github.com/Ecommerce-Microservice-Lab/product-service.git
+            path: k8s
+            port: "8500"
+          - name: order-service
+            repo: https://github.com/Ecommerce-Microservice-Lab/order-service.git
+            path: k8s
+            port: "8300"
+          - name: payment-service
+            repo: https://github.com/Ecommerce-Microservice-Lab/payment-service.git
+            path: k8s
+            port: "8400"
+          - name: shipping-service
+            repo: https://github.com/Ecommerce-Microservice-Lab/shipping-service.git
+            path: k8s
+            port: "8600"
+          - name: favourite-service
+            repo: https://github.com/Ecommerce-Microservice-Lab/favourite-service.git
+            path: k8s
+            port: "8800"
+          - name: service-discovery
+            repo: https://github.com/Ecommerce-Microservice-Lab/service-discovery.git
+            path: k8s
+            port: "8761"
+          - name: api-gateway
+            repo: https://github.com/Ecommerce-Microservice-Lab/api-gateway.git
+            path: k8s
+            port: "8080"
+          - name: cloud-config
+            repo: https://github.com/Ecommerce-Microservice-Lab/cloud-config.git
+            path: k8s
+            port: "9296"
+
+  template:
+    metadata:
+      name: '{{name}}'
+      namespace: argocd
+      labels:
+        app.kubernetes.io/name: '{{name}}'
+        app.kubernetes.io/part-of: ecommerce
+        argocd.argoproj.io/application-set: ecommerce-services
+      finalizers:
+        - resources-finalizer.argocd.argoproj.io
+    spec:
+      project: ecommerce
+      
+      source:
+        repoURL: '{{repo}}'
+        targetRevision: main
+        path: '{{path}}'
+      
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: prod
+      
+      # Sincronización automática (GitOps)
+      syncPolicy:
+        automated:
+          prune: true           # Elimina recursos que ya no están en Git
+          selfHeal: true        # Auto-repara si alguien modifica manualmente
+          allowEmpty: false
+        syncOptions:
+          - CreateNamespace=true
+          - PrunePropagationPolicy=foreground
+          - PruneLast=true
+        retry:
+          limit: 5
+          backoff:
+            duration: 5s
+            factor: 2
+            maxDuration: 3m
+      
+      # Health checks y rollback automático
+      revisionHistoryLimit: 10

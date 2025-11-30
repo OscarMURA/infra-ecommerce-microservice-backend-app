@@ -1,0 +1,53 @@
+# ArgoCD Project - Ecommerce Microservices
+# Define el proyecto que agrupa todas las aplicaciones
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: ecommerce
+  namespace: argocd
+  # Finalizer para limpieza automática
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  description: "E-commerce Microservices Project - GitOps Deployment"
+  
+  # Repositorios Git permitidos
+  sourceRepos:
+    - 'https://github.com/Ecommerce-Microservice-Lab/*'
+    - 'https://github.com/OscarMURA/*'
+  
+  # Destinos permitidos (clusters y namespaces)
+  destinations:
+    - namespace: prod
+      server: https://kubernetes.default.svc
+    - namespace: staging
+      server: https://kubernetes.default.svc
+    - namespace: dev
+      server: https://kubernetes.default.svc
+  
+  # Tipos de recursos de cluster permitidos
+  clusterResourceWhitelist:
+    - group: ''
+      kind: Namespace
+    - group: 'rbac.authorization.k8s.io'
+      kind: ClusterRole
+    - group: 'rbac.authorization.k8s.io'
+      kind: ClusterRoleBinding
+  
+  # Recursos de namespace permitidos (todos)
+  namespaceResourceWhitelist:
+    - group: '*'
+      kind: '*'
+  
+  # Roles del proyecto
+  roles:
+    - name: developer
+      description: "Developer role with read-only access"
+      policies:
+        - p, proj:ecommerce:developer, applications, get, ecommerce/*, allow
+        - p, proj:ecommerce:developer, applications, sync, ecommerce/*, allow
+    - name: admin
+      description: "Admin role with full access"
+      policies:
+        - p, proj:ecommerce:admin, applications, *, ecommerce/*, allow
+        - p, proj:ecommerce:admin, repositories, *, ecommerce/*, allow

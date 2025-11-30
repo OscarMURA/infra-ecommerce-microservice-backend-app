@@ -1,0 +1,101 @@
+# Application individual para order-service con Progressive Delivery
+# Demuestra Canary deployment con análisis de métricas
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: order-service-canary
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: order-service
+    deployment-strategy: canary
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  annotations:
+    # Notificaciones de Slack (si está configurado)
+    notifications.argoproj.io/subscribe.on-sync-succeeded.slack: deployments
+    notifications.argoproj.io/subscribe.on-sync-failed.slack: deployments
+    notifications.argoproj.io/subscribe.on-health-degraded.slack: alerts
+spec:
+  project: ecommerce
+  
+  source:
+    repoURL: https://github.com/Ecommerce-Microservice-Lab/order-service.git
+    targetRevision: main
+    path: k8s/canary
+    
+    # Kustomize para variaciones de ambiente
+    kustomize:
+      namePrefix: canary-
+      commonLabels:
+        deployment-type: canary
+      images:
+        - name: order-service
+          newTag: canary
+  
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: prod
+  
+  # Sincronización con Progressive Delivery
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true
+    retry:
+      limit: 3
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 5m
+
+---
+# Application para rollback automático basado en métricas
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: order-service-stable
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: order-service
+    deployment-strategy: stable
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: ecommerce
+  
+  source:
+    repoURL: https://github.com/Ecommerce-Microservice-Lab/order-service.git
+    # Usar tag de release específico para producción estable
+    targetRevision: v1.0.0
+    path: k8s/stable
+  
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: prod
+  
+  syncPolicy:
+    automated:
+      prune: false          # No eliminar automáticamente (seguridad)
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+  
+  # Ignorar diferencias en campos que cambian automáticamente
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      jsonPointers:
+        - /spec/replicas
+    - group: ""
+      kind: ConfigMap
+      jsonPointers:
+        - /data/config.json
