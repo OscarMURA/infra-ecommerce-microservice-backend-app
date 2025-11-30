@@ -1,0 +1,244 @@
+# Prometheus Alerting Rules
+# Reglas de alertas para E-Commerce Microservices
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-alerting-rules
+  namespace: monitoring
+  labels:
+    app: prometheus
+    component: alerting-rules
+data:
+  alerting-rules.yml: |
+    groups:
+      # ============================================
+      # ALERTAS DE DISPONIBILIDAD DE SERVICIOS
+      # ============================================
+      - name: service-availability
+        rules:
+          # Servicio completamente caído
+          - alert: ServiceDown
+            expr: up{job="ecommerce-prod"} == 0
+            for: 1m
+            labels:
+              severity: critical
+              team: platform
+            annotations:
+              summary: "Servicio {{ $labels.application }} está caído"
+              description: "El servicio {{ $labels.application }} en namespace {{ $labels.namespace }} no responde desde hace más de 1 minuto."
+              runbook_url: "https://wiki.example.com/runbooks/service-down"
+          
+          # Pod reiniciándose frecuentemente
+          - alert: PodRestarting
+            expr: increase(kube_pod_container_status_restarts_total{namespace=~"prod|staging"}[15m]) > 3
+            for: 5m
+            labels:
+              severity: warning
+              team: platform
+            annotations:
+              summary: "Pod {{ $labels.pod }} reiniciándose frecuentemente"
+              description: "El pod {{ $labels.pod }} ha reiniciado más de 3 veces en los últimos 15 minutos."
+          
+          # Menos réplicas de las deseadas
+          - alert: DeploymentReplicasMismatch
+            expr: kube_deployment_spec_replicas{namespace=~"prod|staging"} != kube_deployment_status_replicas_available{namespace=~"prod|staging"}
+            for: 5m
+            labels:
+              severity: warning
+              team: platform
+            annotations:
+              summary: "Deployment {{ $labels.deployment }} tiene réplicas no disponibles"
+              description: "El deployment {{ $labels.deployment }} tiene {{ $value }} réplicas deseadas pero no todas están disponibles."
+
+      # ============================================
+      # ALERTAS DE RENDIMIENTO
+      # ============================================
+      - name: performance
+        rules:
+          # Alta latencia en requests HTTP
+          - alert: HighLatency
+            expr: histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket{namespace=~"prod|staging"}[5m])) by (le, application, namespace)) > 2
+            for: 5m
+            labels:
+              severity: warning
+              team: backend
+            annotations:
+              summary: "Alta latencia en {{ $labels.application }}"
+              description: "El percentil 95 de latencia en {{ $labels.application }} es {{ $value | printf \"%.2f\" }}s (umbral: 2s)."
+          
+          # Alta tasa de errores HTTP (5xx)
+          - alert: HighErrorRate
+            expr: |
+              sum(rate(http_server_requests_seconds_count{status=~"5..",namespace=~"prod|staging"}[5m])) by (application, namespace)
+              /
+              sum(rate(http_server_requests_seconds_count{namespace=~"prod|staging"}[5m])) by (application, namespace)
+              > 0.05
+            for: 5m
+            labels:
+              severity: critical
+              team: backend
+            annotations:
+              summary: "Alta tasa de errores en {{ $labels.application }}"
+              description: "El servicio {{ $labels.application }} tiene una tasa de errores 5xx del {{ $value | printf \"%.2f\" }}% (umbral: 5%)."
+          
+          # Muchos requests lentos
+          - alert: SlowRequests
+            expr: |
+              sum(rate(http_server_requests_seconds_count{namespace=~"prod|staging"}[5m])) by (application, uri)
+              -
+              sum(rate(http_server_requests_seconds_bucket{le="1",namespace=~"prod|staging"}[5m])) by (application, uri)
+              > 10
+            for: 10m
+            labels:
+              severity: warning
+              team: backend
+            annotations:
+              summary: "Muchos requests lentos en {{ $labels.application }}"
+              description: "El endpoint {{ $labels.uri }} de {{ $labels.application }} tiene más de 10 requests/s que tardan más de 1s."
+
+      # ============================================
+      # ALERTAS DE RECURSOS (JVM)
+      # ============================================
+      - name: resources
+        rules:
+          # Alto uso de memoria heap
+          - alert: HighMemoryUsage
+            expr: |
+              sum(jvm_memory_used_bytes{area="heap",namespace=~"prod|staging"}) by (application, namespace)
+              /
+              sum(jvm_memory_max_bytes{area="heap",namespace=~"prod|staging"}) by (application, namespace)
+              > 0.8
+            for: 5m
+            labels:
+              severity: warning
+              team: backend
+            annotations:
+              summary: "Alto uso de memoria en {{ $labels.application }}"
+              description: "El servicio {{ $labels.application }} está usando {{ $value | printf \"%.0f\" }}% de memoria heap (umbral: 80%)."
+          
+          # Memoria heap casi llena (crítico)
+          - alert: MemoryHeapCritical
+            expr: |
+              sum(jvm_memory_used_bytes{area="heap",namespace=~"prod|staging"}) by (application, namespace)
+              /
+              sum(jvm_memory_max_bytes{area="heap",namespace=~"prod|staging"}) by (application, namespace)
+              > 0.95
+            for: 2m
+            labels:
+              severity: critical
+              team: backend
+            annotations:
+              summary: "CRÍTICO: Memoria heap casi llena en {{ $labels.application }}"
+              description: "El servicio {{ $labels.application }} está usando {{ $value | printf \"%.0f\" }}% de memoria heap. Riesgo de OOM inminente."
+          
+          # Alto CPU usage
+          - alert: HighCpuUsage
+            expr: process_cpu_usage{namespace=~"prod|staging"} > 0.8
+            for: 10m
+            labels:
+              severity: warning
+              team: backend
+            annotations:
+              summary: "Alto uso de CPU en {{ $labels.application }}"
+              description: "El servicio {{ $labels.application }} está usando {{ $value | printf \"%.0f\" }}% de CPU (umbral: 80%)."
+          
+          # Garbage Collection excesivo
+          - alert: HighGCPause
+            expr: |
+              rate(jvm_gc_pause_seconds_sum{namespace=~"prod|staging"}[5m])
+              /
+              rate(jvm_gc_pause_seconds_count{namespace=~"prod|staging"}[5m])
+              > 0.5
+            for: 5m
+            labels:
+              severity: warning
+              team: backend
+            annotations:
+              summary: "GC pausas largas en {{ $labels.application }}"
+              description: "El servicio {{ $labels.application }} tiene pausas de GC promedio de {{ $value | printf \"%.2f\" }}s."
+
+      # ============================================
+      # ALERTAS DE CONEXIONES (DB/HTTP)
+      # ============================================
+      - name: connections
+        rules:
+          # Pool de conexiones DB agotándose
+          - alert: DatabaseConnectionPoolExhausted
+            expr: |
+              hikaricp_connections_active{namespace=~"prod|staging"}
+              /
+              hikaricp_connections_max{namespace=~"prod|staging"}
+              > 0.8
+            for: 5m
+            labels:
+              severity: warning
+              team: backend
+            annotations:
+              summary: "Pool de conexiones DB casi lleno en {{ $labels.application }}"
+              description: "El servicio {{ $labels.application }} está usando {{ $value | printf \"%.0f\" }}% del pool de conexiones DB."
+          
+          # Conexiones DB pendientes
+          - alert: DatabaseConnectionsPending
+            expr: hikaricp_connections_pending{namespace=~"prod|staging"} > 5
+            for: 2m
+            labels:
+              severity: warning
+              team: backend
+            annotations:
+              summary: "Conexiones DB pendientes en {{ $labels.application }}"
+              description: "El servicio {{ $labels.application }} tiene {{ $value }} conexiones esperando en cola."
+          
+          # Timeouts de conexión DB
+          - alert: DatabaseConnectionTimeouts
+            expr: increase(hikaricp_connections_timeout_total{namespace=~"prod|staging"}[5m]) > 0
+            for: 1m
+            labels:
+              severity: critical
+              team: backend
+            annotations:
+              summary: "Timeouts de conexión DB en {{ $labels.application }}"
+              description: "El servicio {{ $labels.application }} ha tenido {{ $value }} timeouts de conexión DB en los últimos 5 minutos."
+
+      # ============================================
+      # ALERTAS DE NEGOCIO (E-Commerce)
+      # ============================================
+      - name: business-metrics
+        rules:
+          # Sin órdenes en un periodo (posible problema)
+          - alert: NoOrdersReceived
+            expr: |
+              sum(increase(http_server_requests_seconds_count{uri=~".*order.*",method="POST",namespace="prod"}[30m])) == 0
+            for: 30m
+            labels:
+              severity: warning
+              team: business
+            annotations:
+              summary: "No se han recibido órdenes en 30 minutos"
+              description: "El sistema no ha procesado ninguna orden en los últimos 30 minutos. Verificar si hay un problema."
+          
+          # Sin pagos procesados
+          - alert: NoPaymentsProcessed
+            expr: |
+              sum(increase(http_server_requests_seconds_count{uri=~".*payment.*",method="POST",namespace="prod"}[30m])) == 0
+            for: 30m
+            labels:
+              severity: warning
+              team: business
+            annotations:
+              summary: "No se han procesado pagos en 30 minutos"
+              description: "El sistema de pagos no ha procesado transacciones en los últimos 30 minutos."
+          
+          # Tasa alta de fallos en pagos
+          - alert: HighPaymentFailureRate
+            expr: |
+              sum(rate(http_server_requests_seconds_count{uri=~".*payment.*",status=~"4..|5..",namespace="prod"}[10m]))
+              /
+              sum(rate(http_server_requests_seconds_count{uri=~".*payment.*",namespace="prod"}[10m]))
+              > 0.1
+            for: 10m
+            labels:
+              severity: critical
+              team: business
+            annotations:
+              summary: "Alta tasa de fallos en pagos"
+              description: "El {{ $value | printf \"%.0f\" }}% de los intentos de pago están fallando (umbral: 10%)."
