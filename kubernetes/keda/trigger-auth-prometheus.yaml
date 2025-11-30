@@ -1,0 +1,15 @@
+# TriggerAuthentication para conectar con Prometheus
+# Permite que KEDA consulte métricas de Prometheus
+apiVersion: keda.sh/v1alpha1
+kind: TriggerAuthentication
+metadata:
+  name: prometheus-trigger-auth
+  namespace: prod
+spec:
+  secretTargetRef: []
+  # Prometheus no requiere autenticación en este setup
+  # Si usaras autenticación, agregarías:
+  # secretTargetRef:
+  #   - parameter: bearerToken
+  #     name: prometheus-token
+  #     key: token

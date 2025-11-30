@@ -1,0 +1,91 @@
+# ScaledObject para product-service
+# Trigger 2: Autoscaling basado en CPU + Cron (horario de alta demanda)
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: product-service-scaler
+  namespace: prod
+  labels:
+    app: product-service
+    scaler: keda
+spec:
+  scaleTargetRef:
+    name: product-service  # Nombre del Deployment
+  
+  # Configuración de escalado
+  minReplicaCount: 1       # Mínimo de pods fuera de horario pico
+  maxReplicaCount: 8       # Máximo de pods
+  pollingInterval: 30      # Cada 30s verifica
+  cooldownPeriod: 120      # Espera 2 min antes de reducir
+  
+  # Comportamiento del HPA
+  advanced:
+    horizontalPodAutoscalerConfig:
+      behavior:
+        scaleDown:
+          stabilizationWindowSeconds: 180
+          policies:
+            - type: Pods
+              value: 2
+              periodSeconds: 60
+        scaleUp:
+          stabilizationWindowSeconds: 0
+          policies:
+            - type: Pods
+              value: 3
+              periodSeconds: 30
+  
+  triggers:
+    # Trigger 1: CPU-based scaling
+    - type: cpu
+      metricType: Utilization
+      metadata:
+        # Escala cuando CPU > 70%
+        value: "70"
+    
+    # Trigger 2: Cron-based scaling (horario pico)
+    # Escala a más pods durante horario laboral
+    - type: cron
+      metadata:
+        # Timezone
+        timezone: America/Bogota
+        # Horario de inicio (9:00 AM)
+        start: "0 9 * * 1-5"    # Lunes a Viernes 9am
+        # Horario de fin (6:00 PM)
+        end: "0 18 * * 1-5"     # Lunes a Viernes 6pm
+        # Pods deseados durante horario pico
+        desiredReplicas: "3"
+
+---
+# ScaledObject adicional para user-service
+# Trigger 3: Memory-based scaling
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: user-service-scaler
+  namespace: prod
+  labels:
+    app: user-service
+    scaler: keda
+spec:
+  scaleTargetRef:
+    name: user-service
+  
+  minReplicaCount: 1
+  maxReplicaCount: 6
+  pollingInterval: 30
+  cooldownPeriod: 90
+  
+  triggers:
+    # Trigger basado en memoria
+    - type: memory
+      metricType: Utilization
+      metadata:
+        # Escala cuando memoria > 75%
+        value: "75"
+    
+    # Trigger basado en CPU como respaldo
+    - type: cpu
+      metricType: Utilization
+      metadata:
+        value: "80"

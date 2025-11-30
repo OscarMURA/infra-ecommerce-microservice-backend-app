@@ -1,0 +1,54 @@
+# ScaledObject para order-service
+# Trigger 1: Autoscaling basado en métricas de Prometheus (HTTP requests)
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: order-service-scaler
+  namespace: prod
+  labels:
+    app: order-service
+    scaler: keda
+spec:
+  scaleTargetRef:
+    name: order-service  # Nombre del Deployment
+  
+  # Configuración de escalado
+  minReplicaCount: 1      # Mínimo de pods
+  maxReplicaCount: 10     # Máximo de pods
+  pollingInterval: 15     # Cada 15s verifica métricas
+  cooldownPeriod: 60      # Espera 60s antes de escalar hacia abajo
+  
+  # Comportamiento avanzado del HPA
+  advanced:
+    horizontalPodAutoscalerConfig:
+      behavior:
+        scaleDown:
+          stabilizationWindowSeconds: 120  # Estabilización antes de reducir
+          policies:
+            - type: Percent
+              value: 50        # Reduce máximo 50% por vez
+              periodSeconds: 60
+        scaleUp:
+          stabilizationWindowSeconds: 0    # Escala inmediatamente
+          policies:
+            - type: Percent
+              value: 100       # Puede duplicar pods
+              periodSeconds: 15
+            - type: Pods
+              value: 4         # O agregar hasta 4 pods
+              periodSeconds: 15
+          selectPolicy: Max    # Usa la política que agregue más pods
+  
+  triggers:
+    # Trigger basado en Prometheus - HTTP Request Rate
+    - type: prometheus
+      metadata:
+        # URL del servidor Prometheus
+        serverAddress: http://prometheus-server.monitoring.svc.cluster.local:80
+        # Métrica: requests por segundo al order-service
+        query: |
+          sum(rate(http_server_requests_seconds_count{application="order-service"}[2m]))
+        # Escala cuando hay más de 50 requests/segundo
+        threshold: "50"
+        # Nombre descriptivo
+        metricName: order_service_http_requests_per_second
